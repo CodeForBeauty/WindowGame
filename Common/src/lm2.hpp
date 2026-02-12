@@ -64,6 +64,7 @@ using quaternion = quaternionT<float>;
 
 // Functions
 // Vector
+// Dot
 template<typename T>
 T dot(vector2D<T> a, vector2D<T> b) {
 	return a.x * b.x + a.y * b.y;
@@ -76,7 +77,7 @@ template<typename T>
 T dot(vector4D<T> a, vector4D<T> b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
-
+// Cross
 template<typename T>
 T cross(vector2D<T> a, vector2D<T> b) {
 	return a.x * b.y - a.y * b.x;
@@ -89,7 +90,45 @@ vector3D<T> cross(vector3D<T> a, vector3D<T> b) {
 		a.x * b.y - a.y * b.x
 	};
 }
-
+// Magnitude
+// Squared
+template<typename T>
+T magnitudeSquared(vector2D<T> vec) {
+	return vec.x * vec.x + vec.y * vec.y;
+}
+template<typename T>
+T magnitudeSquared(vector3D<T> vec) {
+	return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
+}
+template<typename T>
+T magnitudeSquared(vector4D<T> vec) {
+	return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w;
+}
+// Normal
+template<typename T>
+T magnitude(vector2D<T> vec) {
+	return std::sqrt(magnitudeSquared(vec));
+}
+template<typename T>
+T magnitude(vector3D<T> vec) {
+	return std::sqrt(magnitudeSquared(vec));
+}
+template<typename T>
+T magnitude(vector4D<T> vec) {
+	return std::sqrt(magnitudeSquared(vec));
+}
+// Normalize
+template<typename T>
+vector2D<T> normalize(vector2D<T> vec) {
+	return vec / magnitude(vec);
+}
+template<typename T>
+vector3D<T> normalize(vector3D<T> vec) {
+	return vec / magnitude(vec);
+}template<typename T>
+vector4D<T> normalize(vector4D<T> vec) {
+	return vec / magnitude(vec);
+}
 
 // Equal
 template<typename T>
