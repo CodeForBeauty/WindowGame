@@ -9,6 +9,10 @@
 
 namespace lm2 {
 
+constexpr double PI = 3.14;
+constexpr double E = 2.7;
+constexpr double PIrad = PI / 180;
+
 // Vector types
 template<typename T>
 struct vector2D {
@@ -57,6 +61,75 @@ struct quaternionT {
 
 using quaternion = quaternionT<float>;
 
+
+// Functions
+// Vector
+template<typename T>
+T dot(vector2D<T> a, vector2D<T> b) {
+	return a.x * b.x + a.y * b.y;
+}
+template<typename T>
+T dot(vector3D<T> a, vector3D<T> b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+template<typename T>
+T dot(vector4D<T> a, vector4D<T> b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+template<typename T>
+T cross(vector2D<T> a, vector2D<T> b) {
+	return a.x * b.y - a.y * b.x;
+}
+template<typename T>
+vector3D<T> cross(vector3D<T> a, vector3D<T> b) {
+	return {
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x
+	};
+}
+
+
+// Equal
+template<typename T>
+bool equal(vector2D<T> a, vector2D<T> b, T epsilon = 0.0001) {
+	return (
+		std::abs(a.x - b.x) < epsilon &&
+		std::abs(a.y - b.y) < epsilon
+		);
+}
+template<typename T>
+bool equal(vector3D<T> a, vector3D<T> b, T epsilon = 0.0001) {
+	return (
+		std::abs(a.x - b.x) < epsilon &&
+		std::abs(a.y - b.y) < epsilon &&
+		std::abs(a.z - b.z) < epsilon
+		);
+}
+template<typename T>
+bool equal(vector4D<T> a, vector4D<T> b, T epsilon = 0.0001) {
+	return (
+		std::abs(a.x - b.x) < epsilon &&
+		std::abs(a.y - b.y) < epsilon &&
+		std::abs(a.z - b.z) < epsilon &&
+		std::abs(a.w - b.w) < epsilon
+		);
+}
+template<typename T>
+bool equal(vector2D<T> a, T b, T epsilon = 0.0001) {
+	return equal(a, { b, b }, epsilon);
+}
+template<typename T>
+bool equal(vector3D<T> a, T b, T epsilon = 0.0001) {
+	return equal(a, { b, b, b }, epsilon);
+}
+template<typename T>
+bool equal(vector4D<T> a, T b, T epsilon = 0.0001) {
+	return equal(a, { b, b, b, b }, epsilon);
+}
+
+// Operator overloads
 
 // Component-vise operations
 // vector2D
@@ -405,44 +478,6 @@ vector4D<T>& operator--(vector4D<T>& a) {
 	--a.z;
 	--a.w;
 	return a;
-}
-
-// Equal
-template<typename T>
-bool equal(vector2D<T> a, vector2D<T> b, T epsilon = 0.0001) {
-	return (
-		std::abs(a.x - b.x) < epsilon &&
-		std::abs(a.y - b.y) < epsilon
-	);
-}
-template<typename T>
-bool equal(vector3D<T> a, vector3D<T> b, T epsilon = 0.0001) {
-	return (
-		std::abs(a.x - b.x) < epsilon &&
-		std::abs(a.y - b.y) < epsilon &&
-		std::abs(a.z - b.z) < epsilon
-	);
-}
-template<typename T>
-bool equal(vector4D<T> a, vector4D<T> b, T epsilon = 0.0001) {
-	return (
-		std::abs(a.x - b.x) < epsilon &&
-		std::abs(a.y - b.y) < epsilon &&
-		std::abs(a.z - b.z) < epsilon &&
-		std::abs(a.w - b.w) < epsilon
-		);
-}
-template<typename T>
-bool equal(vector2D<T> a, T b, T epsilon = 0.0001) {
-	return equal(a, { b, b }, epsilon);
-}
-template<typename T>
-bool equal(vector3D<T> a, T b, T epsilon = 0.0001) {
-	return equal(a, { b, b, b }, epsilon);
-}
-template<typename T>
-bool equal(vector4D<T> a, T b, T epsilon = 0.0001) {
-	return equal(a, { b, b, b, b }, epsilon);
 }
 
 

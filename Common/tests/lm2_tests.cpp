@@ -128,6 +128,23 @@ TEST_CASE(VectorUnaryOperations) {
 	ASSERT_CONDITION(equal(-v4, -5.0f));
 }
 
+TEST_CASE(VectorDotCross) {
+	ASSERT_CONDITION(dot(vec2{ 1, 0 }, vec2{ 0, 1 }) == 0);
+	ASSERT_CONDITION(dot(vec2{ -1, 0 }, vec2{ 1, 0 }) == -1);
+	ASSERT_CONDITION(dot(vec2{ -1, 1 }, vec2{ 1, 1 }) == 0);
+
+	ASSERT_CONDITION(dot(vec3{ 1, 0, 1 }, vec3{ 0, 1, 1 }) == 1);
+	ASSERT_CONDITION(dot(vec3{ -1, 0, -1 }, vec3{ 1, 0, -1 }) == 0);
+	ASSERT_CONDITION(dot(vec3{ -1, 1, 0 }, vec3{ 1, 1, 0 }) == 0);
+
+	ASSERT_CONDITION(cross(vec2{ 1, 0 }, vec2{ 0, 1 }) == 1);
+	ASSERT_CONDITION(cross(vec2{ 0, 1 }, vec2{ 1, 0 }) == -1);
+
+	ASSERT_CONDITION(equal(cross(vec3{ 0, 1, 0 }, vec3{ 1, 0, 0 }), vec3{ 0, 0, -1 }));
+	ASSERT_CONDITION(equal(cross(vec3{ 1, 0, 0 }, vec3{ 0, 1, 0 }), vec3{ 0, 0, 1 }));
+	ASSERT_CONDITION(equal(cross(vec3{ 0, 0, 1 }, vec3{ 0, 1, 0 }), vec3{ -1, 0, 0 }));
+}
+
 int main() {
 	RUN_TESTS();
 
