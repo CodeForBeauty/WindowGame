@@ -74,7 +74,10 @@ vector2D<T> operator*(vector2D<T> a, vector2D<T> b) {
 }
 template<typename T>
 vector2D<T> operator/(vector2D<T> a, vector2D<T> b) {
-	return { a.x / b.x, a.y / b.y };
+	return { 
+		b.x != 0 ? a.x / b.x : 0,
+		b.y != 0 ? a.y / b.y : 0
+	};
 }
 // vector3D
 template<typename T>
@@ -91,7 +94,11 @@ vector3D<T> operator*(vector3D<T> a, vector3D<T> b) {
 }
 template<typename T>
 vector3D<T> operator/(vector3D<T> a, vector3D<T> b) {
-	return { a.x / b.x, a.y / b.y, a.z / b.z };
+	return {
+		b.x != 0 ? a.x / b.x : 0,
+		b.y != 0 ? a.y / b.y : 0,
+		b.z != 0 ? a.z / b.z : 0
+	};
 }
 // vector4D
 template<typename T>
@@ -108,7 +115,12 @@ vector4D<T> operator*(vector4D<T> a, vector4D<T> b) {
 }
 template<typename T>
 vector4D<T> operator/(vector4D<T> a, vector4D<T> b) {
-	return { a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w };
+	return {
+		b.x != 0 ? a.x / b.x : 0,
+		b.y != 0 ? a.y / b.y : 0,
+		b.z != 0 ? a.z / b.z : 0,
+		b.w != 0 ? a.w / b.w : 0,
+	};
 }
 // Scalar operations
 // vector2D
@@ -126,6 +138,9 @@ vector2D<T> operator*(vector2D<T> a, T s) {
 }
 template<typename T>
 vector2D<T> operator/(vector2D<T> a, T s) {
+	if (s == 0) {
+		return { 0, 0 };
+	}
 	return { a.x / s, a.y / s };
 }
 // vector3D
@@ -143,6 +158,9 @@ vector3D<T> operator*(vector3D<T> a, T s) {
 }
 template<typename T>
 vector3D<T> operator/(vector3D<T> a, T s) {
+	if (s == 0) {
+		return { 0, 0 };
+	}
 	return { a.x / s, a.y / s, a.z / s };
 }
 // vector4D
@@ -160,20 +178,57 @@ vector4D<T> operator*(vector4D<T> a, T s) {
 }
 template<typename T>
 vector4D<T> operator/(vector4D<T> a, T s) {
+	if (s == 0) {
+		return { 0, 0 };
+	}
 	return { a.x / s, a.y / s, a.z / s, a.w / s };
 }
 // Modulo
 template<typename T>
-vector2D<T> operator%=(vector2D<T> a, T s) {
-	return {a.x % s, a.y % s };
+vector2D<T> operator%(vector2D<T> a, T s) {
+	if (s == 0) {
+		return { 0,  0 };
+	}
+	return { std::fmod(a.x, s), std::fmod(a.y, s) };
 }
 template<typename T>
-vector3D<T> operator%=(vector3D<T> a, T s) {
-	return { a.x % s, a.y % s, a.z % s };
+vector3D<T> operator%(vector3D<T> a, T s) {
+	if (s == 0) {
+		return { 0,  0 };
+	}
+	return { std::fmod(a.x, s), std::fmod(a.y, s), std::fmod(a.z, s) };
 }
 template<typename T>
-vector4D<T> operator%=(vector4D<T> a, T s) {
-	return { a.x % s, a.y % s, a.z % s, a.w % s };
+vector4D<T> operator%(vector4D<T> a, T s) {
+	if (s == 0) {
+		return { 0,  0 };
+	}
+	return { std::fmod(a.x, s), std::fmod(a.y, s), std::fmod(a.z, s), std::fmod(a.w, s) };
+}
+// With vectors
+template<typename T>
+vector2D<T> operator%(vector2D<T> a, vector2D<T> b) {
+	return {
+		b.x != 0 ? std::fmod(a.x, b.x) : 0,
+		b.y != 0 ? std::fmod(a.y, b.y) : 0
+	};
+}
+template<typename T>
+vector3D<T> operator%(vector3D<T> a, vector3D<T> b) {
+	return {
+		b.x != 0 ? std::fmod(a.x, b.x) : 0,
+		b.y != 0 ? std::fmod(a.y, b.y) : 0,
+		b.z != 0 ? std::fmod(a.z, b.z) : 0
+	};
+}
+template<typename T>
+vector4D<T> operator%(vector4D<T> a, vector4D<T> b) {
+	return {
+		b.x != 0 ? std::fmod(a.x, b.x) : 0,
+		b.y != 0 ? std::fmod(a.y, b.y) : 0,
+		b.z != 0 ? std::fmod(a.z, b.z) : 0,
+		b.w != 0 ? std::fmod(a.w, b.w) : 0
+	};
 }
 // Compound assign operations
 // vector2D
@@ -296,21 +351,18 @@ vector4D<T>& operator%=(vector4D<T>& a, T s) {
 // Unary operations
 // Negate
 template<typename T>
-vector2D<T>& operator-(vector2D<T>& a) {
-	a = { -a.x, -a.y };
-	return a;
+vector2D<T> operator-(vector2D<T> a) {
+	return { -a.x, -a.y };
 }
 template<typename T>
-vector3D<T>& operator-(vector3D<T>& a) {
-	a = { -a.x, -a.y, -a.z };
-	return a;
+vector3D<T> operator-(vector3D<T> a) {
+	return { -a.x, -a.y, -a.z };
 }
 template<typename T>
-vector4D<T>& operator-(vector4D<T>& a) {
-	a = { -a.x, -a.y, -a.z, -a.w };
-	return a;
+vector4D<T> operator-(vector4D<T> a) {
+	return { -a.x, -a.y, -a.z, -a.w };
 }
-// Compound add
+// Increment
 template<typename T>
 vector2D<T>& operator++(vector2D<T>& a) {
 	++a.x;
@@ -332,7 +384,7 @@ vector4D<T>& operator++(vector4D<T>& a) {
 	++a.w;
 	return a;
 }
-// Compound subtract
+// Decrement
 template<typename T>
 vector2D<T>& operator--(vector2D<T>& a) {
 	--a.x;
@@ -380,6 +432,19 @@ bool equal(vector4D<T> a, vector4D<T> b, T epsilon = 0.0001) {
 		std::abs(a.w - b.w) < epsilon
 		);
 }
+template<typename T>
+bool equal(vector2D<T> a, T b, T epsilon = 0.0001) {
+	return equal(a, { b, b }, epsilon);
+}
+template<typename T>
+bool equal(vector3D<T> a, T b, T epsilon = 0.0001) {
+	return equal(a, { b, b, b }, epsilon);
+}
+template<typename T>
+bool equal(vector4D<T> a, T b, T epsilon = 0.0001) {
+	return equal(a, { b, b, b, b }, epsilon);
+}
+
 
 #ifndef LM2_NO_OUTPUT_FUNCTIONS
 

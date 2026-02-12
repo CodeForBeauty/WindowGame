@@ -1,6 +1,11 @@
+/*
+* A simple single header Unit testing library
+*/
+
 #pragma once
 
 #include <functional>
+#include <string>
 #include <string_view>
 #include <vector>
 #include <iostream>
@@ -23,10 +28,10 @@ public:
 		mTests.emplace_back(name, func);
 	}
 
-	void RunTests() {
+	void RunTests(std::string file) {
 		int failed = 0;
 		int passed = 0;
-		Log("Running tests from: " __FILE__, LogColor::White);
+		Log("Running tests from: " + file, LogColor::White);
 		for (auto& test : mTests) {
 			std::cout << "  ";
 			Log(test.first, LogColor::White);
@@ -86,7 +91,7 @@ private:
 	} testName##_RegInstance;\
 	void testName##_Test()
 
-#define RUN_TESTS() testRunner_Test.RunTests()
+#define RUN_TESTS() testRunner_Test.RunTests((strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__))
 
 #define ASSERT_CONDITION(cond) \
 	if (!(cond)) { \
