@@ -1,6 +1,7 @@
 /*
 * A single header library for basic linear math
 */
+#pragma once
 
 #ifndef LM2_NO_OUTPUT_FUNCTIONS
 #include <iostream>
@@ -352,6 +353,32 @@ vector4D<T>& operator--(vector4D<T>& a) {
 	--a.z;
 	--a.w;
 	return a;
+}
+
+// Equal
+template<typename T>
+bool equal(vector2D<T> a, vector2D<T> b, T epsilon = 0.0001) {
+	return (
+		std::abs(a.x - b.x) < epsilon &&
+		std::abs(a.y - b.y) < epsilon
+	);
+}
+template<typename T>
+bool equal(vector3D<T> a, vector3D<T> b, T epsilon = 0.0001) {
+	return (
+		std::abs(a.x - b.x) < epsilon &&
+		std::abs(a.y - b.y) < epsilon &&
+		std::abs(a.z - b.z) < epsilon
+	);
+}
+template<typename T>
+bool equal(vector4D<T> a, vector4D<T> b, T epsilon = 0.0001) {
+	return (
+		std::abs(a.x - b.x) < epsilon &&
+		std::abs(a.y - b.y) < epsilon &&
+		std::abs(a.z - b.z) < epsilon &&
+		std::abs(a.w - b.w) < epsilon
+		);
 }
 
 #ifndef LM2_NO_OUTPUT_FUNCTIONS

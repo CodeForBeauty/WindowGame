@@ -1,10 +1,10 @@
-file (GLOB INCLUDE_SOURCES "src/*")
-add_library (common STATIC ${INCLUDE_SOURCES})
+set (COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src PARENT_SCOPE)
 
-target_include_directories (common BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-set_target_properties(common PROPERTIES LINKER_LANGUAGE CXX)
+add_executable (commonLMTests "tests/lm2_tests.cpp")
+
+target_include_directories (commonLMTests BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET common PROPERTY CXX_STANDARD 20)
+  set_property(TARGET commonLMTests PROPERTY CXX_STANDARD 20)
 endif()
