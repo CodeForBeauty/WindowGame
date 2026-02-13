@@ -249,6 +249,20 @@ matrix3x3<T> rotation3D(vector3D<T> degrees) {
 	return rotY * rotX * rotZ;
 }
 
+// Look at matrix
+template<typename T>
+matrix4x4<T> lookAt(vector3D<T> eye, vector3D<T> at, vector3D<T> up) {
+	vector3D<T> forward = normalize(at - eye);
+	vector3D<T> right = normalize(cross(forward, up));
+	up = normalize(cross(forward, right));
+	return {
+		{ right.x,   right.y,   right.z,   dot(right, -eye) },
+		{ up.x,      up.y,      up.z,      dot(up, -eye) },
+		{ forward.x, forward.y, forward.z, dot(forward, -eye) },
+		{ 0,         0,         0,         1}
+	};
+}
+
 // Equal
 template<typename T>
 bool equal(vector2D<T> a, vector2D<T> b, T epsilon = 0.0001) {
