@@ -180,6 +180,18 @@ TEST_CASE(VectorMagnitudeNormalize) {
 	ASSERT_CONDITION(equal(normalize(vec3{ 5, 0, 5 }), vec3{ 0.707106f, 0, 0.707106f }));
 }
 
+TEST_CASE(MatrixVectorMultiplication) {
+	ASSERT_CONDITION(equal(position2d(vec2{ 0, 1 }) * vec3 { 1, 0, 1 }, vec3{ 1, 1, 1 }));
+	ASSERT_CONDITION(equal(position3d(vec3{ 0, 1, 2 }) * vec4 { 1, 0, 1, 1 }, vec4{ 1, 1, 3, 1 }));
+}
+
+TEST_CASE(MatrixMatrixMultiplication) {
+	mat3 posMat1 = position2d(vec2{ 0, 1 }) * position2d(vec2{ 1, 1 });
+	ASSERT_CONDITION(equal(posMat1 * vec3 { 1, 0, 1 }, vec3{ 2, 2, 1 }));
+	mat4 posMat2 = position3d(vec3{ 0, 1, 1 }) * position3d(vec3{ 1, 1, 1 });
+	ASSERT_CONDITION(equal(posMat2 * vec4 { 1, 0, 1, 1 }, vec4{ 2, 2, 3, 1 }));
+}
+
 int main() {
 	RUN_TESTS();
 

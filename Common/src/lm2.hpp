@@ -591,6 +591,58 @@ vector4D<T>& operator--(vector4D<T>& a) {
 	return a;
 }
 
+// Matrix multiplications
+// With vector
+template<typename T>
+vector2D<T> operator*(matrix2x2<T> mat, vector2D<T> vec) {
+	return {
+		dot(mat.x, vec),
+		dot(mat.y, vec),
+	};
+}
+template<typename T>
+vector3D<T> operator*(matrix3x3<T> mat, vector3D<T> vec) {
+	return {
+		dot(mat.x, vec),
+		dot(mat.y, vec),
+		dot(mat.z, vec),
+	};
+}
+template<typename T>
+vector4D<T> operator*(matrix4x4<T> mat, vector4D<T> vec) {
+	return {
+		dot(mat.x, vec),
+		dot(mat.y, vec),
+		dot(mat.z, vec),
+		dot(mat.w, vec),
+	};
+}
+// With matrix
+template<typename T>
+matrix2x2<T> operator*(matrix2x2<T> a, matrix2x2<T> b) {
+	return {
+		{ dot(a.x, { b.x.x, b.y.x }), dot(a.x, { b.x.y, b.y.y }) },
+		{ dot(a.y, { b.x.x, b.y.x }), dot(a.y, { b.x.y, b.y.y }) },
+	};
+}
+template<typename T>
+matrix3x3<T> operator*(matrix3x3<T> a, matrix3x3<T> b) {
+	return {
+		{ dot(a.x, { b.x.x, b.y.x, b.z.x }), dot(a.x, { b.x.y, b.y.y, b.z.y }), dot(a.x, { b.x.z, b.y.z, b.z.z }) },
+		{ dot(a.y, { b.x.x, b.y.x, b.z.x }), dot(a.y, { b.x.y, b.y.y, b.z.y }), dot(a.y, { b.x.z, b.y.z, b.z.z }) },
+		{ dot(a.z, { b.x.x, b.y.x, b.z.x }), dot(a.z, { b.x.y, b.y.y, b.z.y }), dot(a.z, { b.x.z, b.y.z, b.z.z }) },
+	};
+}
+template<typename T>
+matrix4x4<T> operator*(matrix4x4<T> a, matrix4x4<T> b) {
+	return {
+		{ dot(a.x, { b.x.x, b.y.x, b.z.x, b.w.x }), dot(a.x, { b.x.y, b.y.y, b.z.y, b.w.y }), dot(a.x, { b.x.z, b.y.z, b.z.z, b.w.z }), dot(a.x, { b.x.w, b.y.w, b.z.w, b.w.w }) },
+		{ dot(a.y, { b.x.x, b.y.x, b.z.x, b.w.x }), dot(a.y, { b.x.y, b.y.y, b.z.y, b.w.y }), dot(a.y, { b.x.z, b.y.z, b.z.z, b.w.z }), dot(a.y, { b.x.w, b.y.w, b.z.w, b.w.w }) },
+		{ dot(a.z, { b.x.x, b.y.x, b.z.x, b.w.x }), dot(a.z, { b.x.y, b.y.y, b.z.y, b.w.y }), dot(a.z, { b.x.z, b.y.z, b.z.z, b.w.z }), dot(a.z, { b.x.w, b.y.w, b.z.w, b.w.w }) },
+		{ dot(a.w, { b.x.x, b.y.x, b.z.x, b.w.x }), dot(a.w, { b.x.y, b.y.y, b.z.y, b.w.y }), dot(a.w, { b.x.z, b.y.z, b.z.z, b.w.z }), dot(a.w, { b.x.w, b.y.w, b.z.w, b.w.w }) },
+	};
+}
+
 
 #ifndef LM2_NO_OUTPUT_FUNCTIONS
 
