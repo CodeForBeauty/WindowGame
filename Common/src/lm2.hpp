@@ -14,14 +14,28 @@ constexpr double E = 2.7;
 constexpr double PIrad = PI / 180;
 
 // Vector types
+template<typename T> struct vector3D;
+template<typename T> struct vector4D;
+
 template<typename T>
 struct vector2D {
 	T x, y;
+
+	operator vector3D<T>() {
+		return { x, y, 0 };
+	}
+	operator vector4D<T>() {
+		return { x, y, 0, 0 };
+	}
 };
 
 template<typename T>
 struct vector3D {
 	T x, y, z;
+
+	operator vector4D<T>() {
+		return { x, y, z, 0 };
+	}
 };
 
 template<typename T>
@@ -64,11 +78,11 @@ using quaternion = quaternionT<float>;
 // Scalar functions
 template<typename T>
 T degrees2radians(T degrees) {
-	return degrees * PIrad;
+	return degrees * static_cast<T>(PIrad);
 }
 template<typename T>
 T radians2degrees(T radians) {
-	return radians / PIrad;
+	return radians / static_cast<T>(PIrad);
 }
 
 
@@ -254,7 +268,7 @@ template<typename T>
 matrix4x4<T> lookAt(vector3D<T> eye, vector3D<T> at, vector3D<T> up) {
 	vector3D<T> forward = normalize(at - eye);
 	vector3D<T> right = normalize(cross(forward, up));
-	up = normalize(cross(forward, right));
+	up = cross(forward, right);
 	return {
 		{ right.x,   right.y,   right.z,   dot(right, -eye) },
 		{ up.x,      up.y,      up.z,      dot(up, -eye) },
@@ -302,7 +316,6 @@ bool equal(vector4D<T> a, T b, T epsilon = 0.0001) {
 }
 
 // Operator overloads
-
 // Component-vise operations
 // vector2D
 template<typename T>
