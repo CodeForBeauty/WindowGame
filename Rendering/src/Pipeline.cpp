@@ -10,9 +10,9 @@
 using namespace renderer;
 
 
-constexpr const char* mainShader = "shaders/main.spv";
-constexpr const char* vertShaderFunc = "vertMain";
-constexpr const char* fragShaderFunc = "fragMain";
+constexpr const char* mainShader = "shaders/forward.spv";
+constexpr const char* vertMainShaderFunc = "vertMain";
+constexpr const char* fragMainShaderFunc = "fragMain";
 
 Pipeline::Pipeline(vk::raii::Device& device, vk::Format outputFormat) {
 	CreatePipeline(device, outputFormat);
@@ -30,12 +30,12 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::Format outputFormat)
 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{
 		.stage = vk::ShaderStageFlagBits::eVertex,
 		.module = shaderModule,
-		.pName = vertShaderFunc
+		.pName = vertMainShaderFunc
 	};
 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{
 		.stage = vk::ShaderStageFlagBits::eFragment,
 		.module = shaderModule,
-		.pName = fragShaderFunc
+		.pName = fragMainShaderFunc
 	};
 
 	vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
