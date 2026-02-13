@@ -61,6 +61,16 @@ struct quaternionT {
 
 using quaternion = quaternionT<float>;
 
+// Scalar functions
+template<typename T>
+T degrees2radians(T degrees) {
+	return degrees * PIrad;
+}
+template<typename T>
+T radians2degrees(T radians) {
+	return radians / PIrad;
+}
+
 
 // Functions
 // Vector
@@ -193,13 +203,50 @@ matrix4x4<T> ortho(T width, T height, T near, T far) {
 // ratio = height / width
 template<typename T>
 matrix4x4<T> perspective(T fov, T near, T far, T ratio) {
-	T y = static_cast<T>(1) / std::tan(fov / static_cast<T>(2));
+	T y = static_cast<T>(1) / std::tan( degrees2radians( fov / static_cast<T>(2) ) );
 	return {
 		{ y * ratio, 0,  0,                                0 },
 		{ 0,         y,  0,                                0 },
 		{ 0,         0, -( (far + near) / (far - near) ), -( (2 * near * far) / (far - near) ) },
 		{ 0,         0, -1,                                0 },
 	};
+}
+
+// Rotation Matrices
+template<typename T>
+matrix2x2<T> rotation2D(T degrees) {
+	T rad = degrees2radians(degrees);
+	T sinV = std::sin(rad);
+	T cosV = std::cos(rad);
+	return {
+		{ cosV, sinV },
+		{ -sinV, cosV },
+	};
+}
+// Axis order: YXZ
+template<typename T>
+matrix3x3<T> rotation3D(vector3D<T> degrees) {
+	vector3D<T> rad{ degrees2radians(degrees.x), degrees2radians(degrees.y), degrees2radians(degrees.z) };
+	vector3D<T> sinV{ std::sin(rad.x), std::sin(rad.y), std::sin(rad.z) };
+	vector3D<T> cosV{ std::cos(rad.x), std::cos(rad.y), std::cos(rad.z) };
+
+	matrix3x3<T> rotX{
+		{ 1,  0,      0      },
+		{ 0,  cosV.x, sinV.x },
+		{ 0, -sinV.x, cosV.x },
+	};
+	matrix3x3<T> rotY{
+		{  cosV.y, 0, sinV.y },
+		{  0,      1, 0      },
+		{ -sinV.y, 0, cosV.y },
+	};
+	matrix3x3<T> rotZ{
+		{  cosV.z, sinV.z, 0 },
+		{ -sinV.z, cosV.z, 0 },
+		{  0,      0,      1 },
+	};
+
+	return rotY * rotX * rotZ;
 }
 
 // Equal
@@ -664,17 +711,17 @@ std::ostream& operator<<(std::ostream& os, vector4D<T> vec) {
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, matrix2x2<T> mat) {
-	return os << "X: " << mat.x << "\nY: " << mat.y;
+	return os << "X - " << mat.x << "\nY - " << mat.y;
 }
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, matrix3x3<T> mat) {
-	return os << "X: " << mat.x << "\nY: " << mat.y << "\nZ: " << mat.z;
+	return os << "X - " << mat.x << "\nY - " << mat.y << "\nZ - " << mat.z;
 }
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, matrix4x4<T> mat) {
-	return os << "X: " << mat.x << "\nY: " << mat.y << "\nZ: " << mat.z << "\nW: " << mat.w;
+	return os << "X - " << mat.x << "\nY - " << mat.y << "\nZ - " << mat.z << "\nW - " << mat.w;
 }
 
 #endif // #ifndef LM2_NO_OUTPUT_FUNCTIONS

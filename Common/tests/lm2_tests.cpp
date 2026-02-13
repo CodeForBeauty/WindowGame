@@ -192,6 +192,13 @@ TEST_CASE(MatrixMatrixMultiplication) {
 	ASSERT_CONDITION(equal(posMat2 * vec4 { 1, 0, 1, 1 }, vec4{ 2, 2, 3, 1 }));
 }
 
+TEST_CASE(RotationMatrix) {
+	mat2 rot2D = rotation2D(90.0f);
+	ASSERT_CONDITION(equal(rot2D * vec2{ 1, 0 }, vec2{ 0, -1 }, 0.001f));
+	mat3 rot3D = rotation3D(vec3{ 90.0f, 0, 0 });
+	ASSERT_CONDITION(equal(rot3D * vec3{ 0, 1, 0 }, vec3{ 0, 0, -1 }, 0.001f));
+}
+
 int main() {
 	RUN_TESTS();
 
