@@ -130,6 +130,78 @@ vector4D<T> normalize(vector4D<T> vec) {
 	return vec / magnitude(vec);
 }
 
+// Matrix functions
+// Get identity Matrices
+template<typename T>
+matrix2x2<T> identity2x2() {
+	return {
+		{ static_cast<T>(1.0), static_cast<T>(0.0) },
+		{ static_cast<T>(0.0), static_cast<T>(1.0) },
+	};
+}
+template<typename T>
+matrix3x3<T> identity3x3() {
+	return {
+		{ static_cast<T>(1.0), static_cast<T>(0.0), static_cast<T>(0.0) },
+		{ static_cast<T>(0.0), static_cast<T>(1.0), static_cast<T>(0.0) },
+		{ static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0) },
+	};
+}
+template<typename T>
+matrix4x4<T> identity4x4() {
+	return {
+		{ static_cast<T>(1.0), static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0) },
+		{ static_cast<T>(0.0), static_cast<T>(1.0), static_cast<T>(0.0), static_cast<T>(0.0) },
+		{ static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0), static_cast<T>(0.0) },
+		{ static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0) },
+	};
+}
+// Position Matrices
+template<typename T>
+matrix3x3<T> position2d(vector2D<T> pos) {
+	return {
+		{ static_cast<T>(1.0), static_cast<T>(0.0), pos.x },
+		{ static_cast<T>(0.0), static_cast<T>(1.0), pos.y },
+		{ static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0) },
+	};
+}
+template<typename T>
+matrix4x4<T> position3d(vector3D<T> pos) {
+	return {
+		{ static_cast<T>(1.0), static_cast<T>(0.0), static_cast<T>(0.0), pos.x },
+		{ static_cast<T>(0.0), static_cast<T>(1.0), static_cast<T>(0.0), pos.y },
+		{ static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0), pos.z },
+		{ static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0) },
+	};
+}
+
+// Projection Matrices
+// ratio = height / width
+template<typename T>
+matrix4x4<T> ortho(T left, T right, T bottom, T top, T near, T far, T ratio) {
+	return {
+		{ static_cast<T>(2.0) / (right - left) * ratio, static_cast<T>(0),                    static_cast<T>(0),                   -( (right + left) / (right - left) ) },
+		{ static_cast<T>(0),                            static_cast<T>(2.0) / (top - bottom), static_cast<T>(0),                   -( (top + bottom) / (top - bottom) ) },
+		{ static_cast<T>(0),                            static_cast<T>(0),                    static_cast<T>(-2.0) / (far - near), -( (far + near) / (far - near) ) },
+		{ static_cast<T>(0),                            static_cast<T>(0),                    static_cast<T>(0),                   static_cast<T>(1.0) },
+	};
+}
+template<typename T>
+matrix4x4<T> ortho(T width, T height, T near, T far) {
+	return ortho(-width, width, -height, height, near, far, height / width);
+}
+// ratio = height / width
+template<typename T>
+matrix4x4<T> perspective(T fov, T near, T far, T ratio) {
+	T y = static_cast<T>(1) / std::tan(fov / static_cast<T>(2));
+	return {
+		{ y * ratio, 0,  0,                                0 },
+		{ 0,         y,  0,                                0 },
+		{ 0,         0, -( (far + near) / (far - near) ), -( (2 * near * far) / (far - near) ) },
+		{ 0,         0, -1,                                0 },
+	};
+}
+
 // Equal
 template<typename T>
 bool equal(vector2D<T> a, vector2D<T> b, T epsilon = 0.0001) {

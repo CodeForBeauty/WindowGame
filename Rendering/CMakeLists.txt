@@ -16,7 +16,6 @@ endif ()
 file (GLOB DYNAMIC_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/dep/lib/*.dll")
 file (COPY ${DYNAMIC_LIBS} DESTINATION ${MAIN_BINARY_DIR})
 
-
 # Compiling shaders
 set (SLANG_COMPILER "${CMAKE_CURRENT_SOURCE_DIR}/slang/slangc.exe")
 
