@@ -1,5 +1,12 @@
+struct MainMeshUB {
+	float4x4 model;
+	float4x4 view;
+	float4x4 proj;
+};
+ConstantBuffer<MainMeshUB> uboMain;
+
 struct VSInput {
-    float2 inPosition;
+    float3 inPosition;
     float2 inUV;
 };
 
@@ -11,7 +18,7 @@ struct VertexOutput {
 [shader("vertex")]
 VertexOutput vertMain(VSInput input) {
     VertexOutput output;
-    output.sv_position = float4(input.inPosition, 1.0);
+    output.sv_position = mul( uboMain.proj, mul( uboMain.view, mul( uboMain.model, float4(input.inPosition, 1.0) ) ) );
     output.uv = input.inUV;
     return output;
 }

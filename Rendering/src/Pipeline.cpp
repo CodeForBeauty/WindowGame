@@ -1,6 +1,9 @@
 #include "Pipeline.h"
 #include "Renderer.h"
 
+#include "vertex.h"
+#include "renderer_helpers.h"
+
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
@@ -14,11 +17,13 @@ constexpr const char* mainShader = "shaders/forward.spv";
 constexpr const char* vertMainShaderFunc = "vertMain";
 constexpr const char* fragMainShaderFunc = "fragMain";
 
-Pipeline::Pipeline(vk::raii::Device& device, vk::Format outputFormat) {
-	CreatePipeline(device, outputFormat);
+Pipeline::Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat) {
+	CreatePipeline(device, physicalDevice, outputFormat);
 }
 
-void Pipeline::CreatePipeline(vk::raii::Device& device, vk::Format outputFormat) {
+void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat) {
+	CreateUniformBuffers(device, physicalDevice);
+
 	std::vector<char> shaderCode = ReadFile(mainShader);
 
 	vk::ShaderModuleCreateInfo shaderModuleCI{
@@ -110,7 +115,11 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::Format outputFormat)
 		.pAttachments = &colorBlendAttachment
 	};
 
-	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{ .setLayoutCount = 0, .pushConstantRangeCount = 0 };
+	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
+		.setLayoutCount = 1,
+		.pSetLayouts = &*mDescriptorSetLayout,
+		.pushConstantRangeCount = 0
+	};
 
 	mPipelineLayout = vk::raii::PipelineLayout{ device, pipelineLayoutInfo };
 
@@ -159,7 +168,20 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 		.pColorAttachments = &attachmentInfo
 	};
 
+	MainMeshUB ubo{
+		lm2::position3d<float>({ 0.1f, 0, -5 }),
+		lm2::identity4x4<float>(),
+		//lm2::ortho<float>(1, 1, 0.5f, 15.0f),
+		lm2::perspective<float>(45.0f, 0.5f, 10.0f, 1),
+	};
+
 	commandBuffer.beginRendering(renderingInfo);
+
+
+	memcpy(mMainBufferMapped, &ubo, sizeof(ubo));
+
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, *mMainDescriptorSet, nullptr);
+
 
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mGraphicsPipeline);
 
@@ -172,6 +194,54 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	commandBuffer.draw(vertexCount, 1, 0, 0);
 
 	commandBuffer.endRendering();
+}
+
+void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice) {
+	vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr };
+	vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = 1, .pBindings = &uboLayoutBinding };
+	mDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+
+	vk::DeviceSize bufferSize = sizeof(MainMeshUB);
+
+	createBuffer(device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mMainBuffer, mMainBufferMemory);
+	
+	mMainBufferMapped = mMainBufferMemory.mapMemory(0, bufferSize);
+
+
+	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, 1);
+	vk::DescriptorPoolCreateInfo poolInfo{
+		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+		.maxSets = 1,
+		.poolSizeCount = 1,
+		.pPoolSizes = &poolSize
+	};
+
+	mDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
+
+	vk::DescriptorSetLayout layouts{ *mDescriptorSetLayout };
+	vk::DescriptorSetAllocateInfo allocInfo{
+		.descriptorPool = mDescriptorPool,
+		.descriptorSetCount = 1,
+		.pSetLayouts = &layouts
+	};
+	auto descriptorSets = device.allocateDescriptorSets(allocInfo);
+	mMainDescriptorSet = std::move(descriptorSets[0]);
+
+	vk::DescriptorBufferInfo bufferInfo{
+		.buffer = mMainBuffer,
+		.offset = 0,
+		.range = sizeof(MainMeshUB)
+	};
+	vk::WriteDescriptorSet descriptorWrite{
+		.dstSet = mMainDescriptorSet,
+		.dstBinding = 0,
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = vk::DescriptorType::eUniformBuffer,
+		.pBufferInfo = &bufferInfo
+	};
+	device.updateDescriptorSets(descriptorWrite, {});
 }
 
 std::vector<char> Pipeline::ReadFile(const char* filepath) {

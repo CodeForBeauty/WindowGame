@@ -61,17 +61,4 @@ private:
 	void CreatePipeline();
 };
 
-struct vec3 {
-	float x, y, z;
-};
-
-struct vec2 {
-	float x, y;
-};
-
-struct vertex {
-	vec3 pos;
-	vec2 uv;
-};
-
 } // namespace renderer

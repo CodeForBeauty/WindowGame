@@ -36,7 +36,7 @@ foreach (SHADER IN LISTS SHADER_SOURCES)
     set (SHADER_OUTPUT_FILE ${SHADER_BINARY_DIR}/${FILE_NAME}.spv)
     add_custom_command (
         OUTPUT ${SHADER_OUTPUT_FILE}
-        COMMAND ${SLANG_COMPILER} ${SHADER} -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o ${SHADER_OUTPUT_FILE}
+        COMMAND ${SLANG_COMPILER} ${SHADER} -target spirv -matrix-layout-row-major -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o ${SHADER_OUTPUT_FILE}
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SHADER}"
     )

@@ -1,5 +1,8 @@
 #include "Renderer.h"
 
+#include "vertex.h"
+#include "renderer_helpers.h"
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
@@ -258,41 +261,14 @@ void Renderer::LoadRenderData() {
 
 	mTotalVertexCount = vertices.size();
 
-	vk::BufferCreateInfo bufferInfo{
-		.size = sizeof(vertices[0]) * vertices.size(),
-		.usage = vk::BufferUsageFlagBits::eVertexBuffer,
-		.sharingMode = vk::SharingMode::eExclusive
-	};
+	vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-	mVertexBuffer = vk::raii::Buffer(mVkDevice, bufferInfo);
-
-	vk::MemoryRequirements memRequirements = mVertexBuffer.getMemoryRequirements();
-
-	vk::PhysicalDeviceMemoryProperties memProperties = mVkPhysicalDevice.getMemoryProperties();
-
-	vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-	uint32_t typeFilter = memRequirements.memoryTypeBits;
-
-	uint32_t memIdx;
-
-	for (memIdx = 0; memIdx < memProperties.memoryTypeCount; ++memIdx) {
-		if ((typeFilter & (1 << memIdx)) && (memProperties.memoryTypes[memIdx].propertyFlags & properties) == properties) {
-			break;
-		}
-	}
-
-	vk::MemoryAllocateInfo memoryAllocateInfo{
-		.allocationSize = memRequirements.size,
-		.memoryTypeIndex = memIdx
-	};
-
-	mVertexBufferMemory = vk::raii::DeviceMemory(mVkDevice, memoryAllocateInfo);
-
-	mVertexBuffer.bindMemory(*mVertexBufferMemory, 0);
+	createBuffer(mVkDevice, mVkPhysicalDevice, bufferSize, vk::BufferUsageFlagBits::eVertexBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVertexBuffer, mVertexBufferMemory);
 
 	{
-		void* data = mVertexBufferMemory.mapMemory(0, bufferInfo.size);
-		memcpy(data, vertices.data(), bufferInfo.size);
+		void* data = mVertexBufferMemory.mapMemory(0, bufferSize);
+		memcpy(data, vertices.data(), bufferSize);
 		mVertexBufferMemory.unmapMemory();
 	}
 }
@@ -302,5 +278,5 @@ void Renderer::CreatePipeline() {
 	mRenderFinishedSemaphore = vk::raii::Semaphore(mVkDevice, vk::SemaphoreCreateInfo());
 	mDrawFence = vk::raii::Fence(mVkDevice, { .flags = vk::FenceCreateFlagBits::eSignaled });
 
-	mPipeline.CreatePipeline(mVkDevice, imageFormat);
+	mPipeline.CreatePipeline(mVkDevice, mVkPhysicalDevice, imageFormat);
 }

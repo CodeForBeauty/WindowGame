@@ -48,14 +48,42 @@ using vec3 = vector3D<float>;
 using vec4 = vector4D<float>;
 
 // Matrix types
+template<typename T> struct matrix3x3;
+template<typename T> struct matrix4x4;
+
 template<typename T>
 struct matrix2x2 {
 	vector2D<T> x, y;
+
+	operator matrix3x3<T>() {
+		return {
+			{ x.x, x.y, 0 },
+			{ y.x, y.y, 0 },
+			{ 0,   0,   1 },
+		};
+	}
+	operator matrix4x4<T>() {
+		return {
+			{ x.x, x.y, 0, 0 },
+			{ y.x, y.y, 0, 0 },
+			{ 0,   0,   1, 0 },
+			{ 0,   0,   0, 1 },
+		};
+	}
 };
 
 template<typename T>
 struct matrix3x3 {
 	vector3D<T> x, y, z;
+
+	operator matrix4x4<T>() {
+		return {
+			{ x.x, x.y, x.z, 0 },
+			{ y.x, y.y, y.z, 0 },
+			{ z.x, z.y, y.z, 0 },
+			{ 0,   0,   0,   1 },
+		};
+	}
 };
 
 template<typename T>
