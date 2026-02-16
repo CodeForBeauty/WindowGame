@@ -3,6 +3,7 @@
 target_include_directories (Main BEFORE PRIVATE ${COMMON_INCLUDE_DIR})
 
 target_link_libraries (Main rendering)
+target_link_libraries (Main assetLib)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Main PROPERTY CXX_STANDARD 20)

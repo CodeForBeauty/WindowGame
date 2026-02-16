@@ -10,6 +10,7 @@ project ("Window")
 set (MAIN_BINARY_DIR "${CMAKE_BINARY_DIR}/main")
 
 add_subdirectory ("Common")
+add_subdirectory ("Assets")
 add_subdirectory ("Rendering")
 add_subdirectory ("Main")
 

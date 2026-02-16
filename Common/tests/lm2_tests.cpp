@@ -181,14 +181,14 @@ TEST_CASE(VectorMagnitudeNormalize) {
 }
 
 TEST_CASE(MatrixVectorMultiplication) {
-	ASSERT_CONDITION(equal(position2d(vec2{ 0, 1 }) * vec3 { 1, 0, 1 }, vec3{ 1, 1, 1 }));
-	ASSERT_CONDITION(equal(position3d(vec3{ 0, 1, 2 }) * vec4 { 1, 0, 1, 1 }, vec4{ 1, 1, 3, 1 }));
+	ASSERT_CONDITION(equal(position2D(vec2{ 0, 1 }) * vec3 { 1, 0, 1 }, vec3{ 1, 1, 1 }));
+	ASSERT_CONDITION(equal(position3D(vec3{ 0, 1, 2 }) * vec4 { 1, 0, 1, 1 }, vec4{ 1, 1, 3, 1 }));
 }
 
 TEST_CASE(MatrixMatrixMultiplication) {
-	mat3 posMat1 = position2d(vec2{ 0, 1 }) * position2d(vec2{ 1, 1 });
+	mat3 posMat1 = position2D(vec2{ 0, 1 }) * position2D(vec2{ 1, 1 });
 	ASSERT_CONDITION(equal(posMat1 * vec3 { 1, 0, 1 }, vec3{ 2, 2, 1 }));
-	mat4 posMat2 = position3d(vec3{ 0, 1, 1 }) * position3d(vec3{ 1, 1, 1 });
+	mat4 posMat2 = position3D(vec3{ 0, 1, 1 }) * position3D(vec3{ 1, 1, 1 });
 	ASSERT_CONDITION(equal(posMat2 * vec4 { 1, 0, 1, 1 }, vec4{ 2, 2, 3, 1 }));
 }
 

@@ -210,7 +210,7 @@ matrix4x4<T> identity4x4() {
 }
 // Position Matrices
 template<typename T>
-matrix3x3<T> position2d(vector2D<T> pos) {
+matrix3x3<T> position2D(vector2D<T> pos) {
 	return {
 		{ static_cast<T>(1.0), static_cast<T>(0.0), pos.x },
 		{ static_cast<T>(0.0), static_cast<T>(1.0), pos.y },
@@ -218,7 +218,7 @@ matrix3x3<T> position2d(vector2D<T> pos) {
 	};
 }
 template<typename T>
-matrix4x4<T> position3d(vector3D<T> pos) {
+matrix4x4<T> position3D(vector3D<T> pos) {
 	return {
 		{ static_cast<T>(1.0), static_cast<T>(0.0), static_cast<T>(0.0), pos.x },
 		{ static_cast<T>(0.0), static_cast<T>(1.0), static_cast<T>(0.0), pos.y },
