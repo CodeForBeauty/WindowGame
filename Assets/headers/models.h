@@ -1,7 +1,11 @@
 #pragma once
 
+#include "vertex.h"
+
+#include <vector>
+
 namespace assets {
 
-void loadModel(const char* filepath);
+std::vector<renderer::vertex> loadModel(const char* filepath);
 
 } // namespace assets

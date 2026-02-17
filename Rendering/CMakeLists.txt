@@ -23,11 +23,7 @@ set (SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set (SHADER_BINARY_DIR "${MAIN_BINARY_DIR}/shaders")
 
 
-add_custom_command (
-          OUTPUT ${SHADER_BINARY_DIR}
-          COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_BINARY_DIR}
-          COMMENT "Creating ${SHADER_BINARY_DIR}"
-)
+
 
 file (GLOB SHADER_SOURCES "${SHADER_SOURCE_DIR}/*.slang")
 
@@ -36,10 +32,12 @@ foreach (SHADER IN LISTS SHADER_SOURCES)
     set (SHADER_OUTPUT_FILE ${SHADER_BINARY_DIR}/${FILE_NAME}.spv)
     add_custom_command (
         OUTPUT ${SHADER_OUTPUT_FILE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_BINARY_DIR}
         COMMAND ${SLANG_COMPILER} ${SHADER} -target spirv -matrix-layout-row-major -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o ${SHADER_OUTPUT_FILE}
-        DEPENDS ${SHADER}
+        DEPENDS ${SHADER} ${SHADER_BINARY_DIR}
         COMMENT "Compiling ${SHADER}"
     )
+    message (COMMENT " compiled: ${SHADER_OUTPUT_FILE}")
 
     list (APPEND COMPILED_SHADERS ${SHADER_OUTPUT_FILE})
 endforeach()
