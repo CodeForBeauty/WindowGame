@@ -59,7 +59,7 @@ void Renderer::Render(int width, int height) {
 	mVkCommandBuffer.pipelineBarrier2(dependencyInfo);
 
 
-	mPipeline.ApplyBasePass(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], width, height, mVkVertexBuffer, mTotalVertexCount);
+	mPipeline.ApplyBasePass(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], width, height, mVkVertexBuffer, mVkIndexBuffer, mTotalIndexCount);
 
 
 	vk::ImageMemoryBarrier2 barrier1 = {
@@ -114,30 +114,54 @@ void Renderer::Render(int width, int height) {
 	result = mVkPresentQueue.presentKHR(presentInfoKHR);
 }
 
-void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<unsigned int>& indices) {
+void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<uint16_t>& indices) {
 	mVkVertexBufferMemory = nullptr;
 	mVkVertexBuffer = nullptr;
 
 	mTotalVertexCount = vertices.size();
+	mTotalIndexCount = indices.size();
 
-	vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+	vk::DeviceSize vertBufSize = sizeof(vertices[0]) * vertices.size();
 
-	vk::raii::Buffer stagingBuffer = nullptr;
-	vk::raii::DeviceMemory stagingMemory = nullptr;
+	vk::raii::Buffer vertStagingBuffer = nullptr;
+	vk::raii::DeviceMemory vertStagingMemory = nullptr;
 
-	createBuffer(mVkDevice, mVkPhysicalDevice, bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingMemory);
+	createBuffer(mVkDevice, mVkPhysicalDevice, vertBufSize, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, vertStagingBuffer, vertStagingMemory);
 
-	createBuffer(mVkDevice, mVkPhysicalDevice, bufferSize, vk::BufferUsageFlagBits::eVertexBuffer,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVkVertexBuffer, mVkVertexBufferMemory);
+	createBuffer(mVkDevice, mVkPhysicalDevice, vertBufSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, mVkVertexBuffer, mVkVertexBufferMemory);
 	
 	{
-		void* data = stagingMemory.mapMemory(0, bufferSize);
-		memcpy(data, vertices.data(), bufferSize);
-		stagingMemory.unmapMemory();
+		void* data = vertStagingMemory.mapMemory(0, vertBufSize);
+		memcpy(data, vertices.data(), vertBufSize);
+		vertStagingMemory.unmapMemory();
 	}
 
-	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, stagingBuffer, mVkVertexBuffer, bufferSize);
+	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, vertStagingBuffer, mVkVertexBuffer, vertBufSize);
+
+	// Index buffer
+	mVkIndexBufferMemory = nullptr;
+	mVkIndexBuffer = nullptr;
+
+	vk::DeviceSize indexBufSize = sizeof(indices[0]) * indices.size();
+
+	vk::raii::Buffer indStagingBuffer = nullptr;
+	vk::raii::DeviceMemory indStagingMemory = nullptr;
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, indexBufSize, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, indStagingBuffer, indStagingMemory);
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, indexBufSize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, mVkIndexBuffer, mVkIndexBufferMemory);
+
+	{
+		void* data = indStagingMemory.mapMemory(0, indexBufSize);
+		memcpy(data, indices.data(), indexBufSize);
+		indStagingMemory.unmapMemory();
+	}
+
+	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, indStagingBuffer, mVkIndexBuffer, indexBufSize);
 }
 
 void Renderer::Cleanup() {
@@ -276,7 +300,7 @@ void Renderer::CreateCommandPool() {
 
 void Renderer::LoadRenderData() {
 	std::vector<vertex> vertices{ {} };
-	std::vector<unsigned int> indices;
+	std::vector<uint16_t> indices{ 0 };
 	UpdateData(vertices, indices);
 }
 

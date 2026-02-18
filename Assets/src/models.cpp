@@ -8,7 +8,8 @@
 #include <sstream>
 
 
-bool assets::loadModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<unsigned int>& indices) {
+bool assets::loadModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<uint16_t>& indices) {
+	/*TEMPORARY FUNCTIONALITY*/
 	std::ifstream file{ filepath };
 
 	std::string line;
@@ -17,59 +18,89 @@ bool assets::loadModel(const char* filepath, std::vector<renderer::vertex>& vert
 
 	std::string command;
 
-	int currPos = 0;
-	int currNor = 0;
-	int currUv = 0;
-
 	vertices.clear();
 	indices.clear();
 
-	while (std::getline(file, line)) {
-		if (line[0] != '#') {
-			ss.str(line);
-			ss.clear();
+	std::stringstream indStream;
 
+	std::vector<lm2::vec3> positions;
+	std::vector<lm2::vec2> uvs;
+	std::vector<lm2::vec3> normals;
+
+	while (std::getline(file, line) && line[0] != 'v')
+		;
+
+	do {
+		ss.str(line);
+		ss.clear();
+
+		ss >> command;
+		lm2::vec3 pos{};
+		ss >> pos.x;
+		ss >> pos.y;
+		ss >> pos.z;
+		positions.push_back(pos);
+	} while (std::getline(file, line) && line[0] == 'v' && line[1] == ' ');
+
+	do {
+		ss.str(line);
+		ss.clear();
+
+		ss >> command;
+		lm2::vec3 normal{};
+		ss >> normal.x;
+		ss >> normal.y;
+		ss >> normal.z;
+		normals.push_back(normal);
+	} while (std::getline(file, line) && line[0] == 'v' && line[1] == 'n');
+
+	do {
+		ss.str(line);
+		ss.clear();
+
+		ss >> command;
+		lm2::vec2 uv{};
+		ss >> uv.x;
+		ss >> uv.y;
+		uvs.push_back(uv);
+	} while (std::getline(file, line) && line[0] == 'v' && line[1] == 't');
+
+	vertices.resize(positions.size());
+
+	int currentIndex = 0;
+
+	while (std::getline(file, line) && line[0] != 'f')
+		;
+
+	do {
+		ss.str(line);
+		ss.clear();
+
+		ss >> command;
+
+		std::string idx;
+
+		for (int i = 0; i < 3; ++i) {
 			ss >> command;
-			if (command == "v") {
-				lm2::vec3 pos{};
-				ss >> pos.x;
-				ss >> pos.y;
-				ss >> pos.z;
-				if (vertices.size() <= currPos) {
-					vertices.push_back({ .pos = pos });
-				}
-				else {
-					vertices[currPos].pos = pos;
-				}
-				currPos++;
-			}
-			else if (command == "vn") {
-				lm2::vec3 nor{};
-				ss >> nor.x;
-				ss >> nor.y;
-				ss >> nor.z;
-				if (vertices.size() <= currNor) {
-					vertices.push_back({ .normal = nor });
-				}
-				else {
-					vertices[currNor].normal = nor;
-				}
-				currNor++;
-			}
-			else if (command == "vt") {
-				lm2::vec2 uv{};
-				ss >> uv.x;
-				ss >> uv.y;
-				if (vertices.size() <= currNor) {
-					vertices.push_back({ .uv = uv });
-				}
-				else {
-					vertices[currNor].uv = uv;
-				}
-				currNor++;
-			}
+			std::stringstream idSS(command);
+
+			int idx;
+			idSS >> idx;
+			idSS.get();
+			currentIndex = idx - 1;
+			vertices[currentIndex].pos = positions[idx - 1];
+
+			idSS >> idx;
+			idSS.get();
+			vertices[currentIndex].uv = uvs[idx - 1];
+
+			idSS >> idx;
+			idSS.get();
+			vertices[currentIndex].normal = normals[idx - 1];
+
+			indices.push_back(currentIndex);
 		}
-	}
+	} while (std::getline(file, line) && line[0] == 'f');
 
 	file.close();
 	return true;

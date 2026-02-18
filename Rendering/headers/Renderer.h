@@ -19,7 +19,7 @@ public:
 
 	void Render(int width, int height);
 
-	void UpdateData(std::vector<vertex>& vertices, std::vector<unsigned int>& indices);
+	void UpdateData(std::vector<vertex>& vertices, std::vector<uint16_t>& indices);
 
 	void Cleanup();
 
@@ -50,6 +50,8 @@ private:
 
 	vk::raii::Buffer                 mVkVertexBuffer             = nullptr;
 	vk::raii::DeviceMemory           mVkVertexBufferMemory       = nullptr;
+	vk::raii::Buffer                 mVkIndexBuffer              = nullptr;
+	vk::raii::DeviceMemory           mVkIndexBufferMemory        = nullptr;
 	
 	uint32_t mVkGraphicsIndex = 0;
 	uint32_t mVkPresentIndex = 0;
@@ -58,6 +60,7 @@ private:
 
 	int mCurrentSwapImage = 0;
 	int mTotalVertexCount = 0;
+	int mTotalIndexCount = 0;
 
 	void CreateInstance(const char* name);
 	void CreateDevice();

@@ -19,7 +19,7 @@ public:
 	void CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat);
 
 	void ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView,
-		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, int vertexCount);
+		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, int indexCount);
 
 private:
 #ifndef NDEBUG

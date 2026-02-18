@@ -150,7 +150,7 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 }
 
 void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView,
-	int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, int vertexCount) {
+	int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, int indexCount) {
 
 	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
 	vk::RenderingAttachmentInfo attachmentInfo = {
@@ -195,8 +195,9 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), { .width = static_cast<uint32_t>(viewWidth), .height = static_cast<uint32_t>(viewHeight) }));
 
 	commandBuffer.bindVertexBuffers(0, *vertexBuffer, { 0 });
+	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint16);
 
-	commandBuffer.draw(vertexCount, 1, 0, 0);
+	commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);
 
 	commandBuffer.endRendering();
 }

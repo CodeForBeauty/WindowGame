@@ -8,7 +8,7 @@ int main() {
 	renderer::Renderer* rend = app.GetRenderer();
 
 	std::vector<renderer::vertex> vertices;
-	std::vector<unsigned int> indices;
+	std::vector<uint16_t> indices;
 
 	assets::loadModel("assets/suzanne.obj", vertices, indices);
 
