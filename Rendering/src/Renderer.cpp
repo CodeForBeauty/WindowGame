@@ -122,14 +122,22 @@ void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<unsigned in
 
 	vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
+	vk::raii::Buffer stagingBuffer = nullptr;
+	vk::raii::DeviceMemory stagingMemory = nullptr;
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingMemory);
+
 	createBuffer(mVkDevice, mVkPhysicalDevice, bufferSize, vk::BufferUsageFlagBits::eVertexBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVertexBuffer, mVertexBufferMemory);
-
+	
 	{
-		void* data = mVertexBufferMemory.mapMemory(0, bufferSize);
+		void* data = stagingMemory.mapMemory(0, bufferSize);
 		memcpy(data, vertices.data(), bufferSize);
-		mVertexBufferMemory.unmapMemory();
+		stagingMemory.unmapMemory();
 	}
+
+	copyBuffer(mVkDevice, mCommandPool, mVkGraphicsQueue, stagingBuffer, mVertexBuffer, bufferSize);
 }
 
 void Renderer::Cleanup() {

@@ -42,3 +42,22 @@ void renderer::createBuffer(const vk::raii::Device& device, const vk::raii::Phys
 
 	outBuffer.bindMemory(*outBufferMemory, 0);
 }
+
+void renderer::copyBuffer(const vk::raii::Device& device, const vk::CommandPool& cmdPool, const vk::raii::Queue graphicsQueue,
+		vk::raii::Buffer& srcBuffer, vk::raii::Buffer& destBuffer, vk::DeviceSize size) {
+	vk::CommandBufferAllocateInfo allocInfo{
+		.commandPool = cmdPool,
+		.level = vk::CommandBufferLevel::ePrimary,
+		.commandBufferCount = 1
+	};
+	vk::raii::CommandBuffer commandCopyBuffer = std::move(device.allocateCommandBuffers(allocInfo).front());
+
+	commandCopyBuffer.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+
+	commandCopyBuffer.copyBuffer(srcBuffer, destBuffer, vk::BufferCopy(0, 0, size));
+
+	commandCopyBuffer.end();
+
+	graphicsQueue.submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandCopyBuffer }, nullptr);
+	graphicsQueue.waitIdle();
+}
