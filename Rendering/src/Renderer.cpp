@@ -89,6 +89,7 @@ void Renderer::Render(int width, int height) {
 
 	mCommandBuffer.end();
 
+	auto [result, imageIndex] = mVkSwapchain.acquireNextImage(UINT64_MAX, mPresentCompleteSemaphore, nullptr);
 
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 	const vk::SubmitInfo submitInfo{
@@ -101,8 +102,6 @@ void Renderer::Render(int width, int height) {
 		.pSignalSemaphores = &*mRenderFinishedSemaphore };
 
 	mVkGraphicsQueue.submit(submitInfo, *mDrawFence);
-
-	auto [result, imageIndex] = mVkSwapchain.acquireNextImage(UINT64_MAX, mPresentCompleteSemaphore, nullptr);
 
 	const vk::PresentInfoKHR presentInfoKHR{
 		.waitSemaphoreCount = 1,
@@ -152,17 +151,6 @@ void Renderer::CreateInstance(const char* name) {
 		iExtensions.insert(iExtensions.end(), sdlExtensions, sdlExtensions + extensionCount);
 	}
 
-	uint32_t extCount = 0;
-	vk::enumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
-	if (extCount > 0) {
-		std::vector<vk::ExtensionProperties> extensions(extCount);
-		if (vk::enumerateInstanceExtensionProperties(nullptr, &extCount, &extensions.front()) == vk::Result::eSuccess) {
-			for (vk::ExtensionProperties& extension : extensions) {
-				iExtensions.push_back(extension.extensionName);
-			}
-		}
-	}
-
 	vk::InstanceCreateInfo instanceCI{
 		.pApplicationInfo = &appInfo,
 		.enabledExtensionCount = extensionCount + 1,
@@ -207,6 +195,7 @@ void Renderer::CreateDevice() {
 	};
 	vk::PhysicalDeviceVulkan13Features vulkan13Features{
 		.pNext = &extendedDynamicStateFeatures,
+		.synchronization2 = vk::True,
 		.dynamicRendering = vk::True,
 	};
 	features.pNext = &vulkan13Features;
