@@ -26,7 +26,7 @@ public:
 private:
 	Window* mWindow;
 
-	vk::raii::Context mContext;
+	vk::raii::Context mVkContext;
 
 	vk::raii::Instance               mVkInstance               = nullptr;
 	vk::raii::SurfaceKHR             mVkSurface                = nullptr;
@@ -37,22 +37,22 @@ private:
 	vk::raii::Queue                  mVkPresentQueue           = nullptr;
 
 	vk::raii::SwapchainKHR           mVkSwapchain              = nullptr;
-	std::vector<vk::Image>           mSwapImages;
-	std::vector<vk::raii::ImageView> mImageViews;
+	std::vector<vk::Image>           mVkSwapImages;
+	std::vector<vk::raii::ImageView> mVkImageViews;
 
-	vk::raii::CommandPool            mCommandPool              = nullptr;
-	vk::raii::CommandBuffer          mCommandBuffer            = nullptr;
+	vk::raii::CommandPool            mVkCommandPool              = nullptr;
+	vk::raii::CommandBuffer          mVkCommandBuffer            = nullptr;
 
 
-	vk::raii::Semaphore              mPresentCompleteSemaphore = nullptr;
-	vk::raii::Semaphore              mRenderFinishedSemaphore  = nullptr;
-	vk::raii::Fence                  mDrawFence                = nullptr;
+	vk::raii::Semaphore              mVkPresentCompleteSemaphore = nullptr;
+	vk::raii::Semaphore              mVkRenderFinishedSemaphore  = nullptr;
+	vk::raii::Fence                  mVkDrawFence                = nullptr;
 
-	vk::raii::Buffer                 mVertexBuffer             = nullptr;
-	vk::raii::DeviceMemory           mVertexBufferMemory       = nullptr;
+	vk::raii::Buffer                 mVkVertexBuffer             = nullptr;
+	vk::raii::DeviceMemory           mVkVertexBufferMemory       = nullptr;
 	
-	uint32_t mGraphicsIndex = 0;
-	uint32_t mPresentIndex = 0;
+	uint32_t mVkGraphicsIndex = 0;
+	uint32_t mVkPresentIndex = 0;
 
 	Pipeline mPipeline = nullptr;
 

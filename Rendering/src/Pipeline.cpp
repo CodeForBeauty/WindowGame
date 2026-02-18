@@ -117,11 +117,11 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
 		.setLayoutCount = 1,
-		.pSetLayouts = &*mDescriptorSetLayout,
+		.pSetLayouts = &*mVkDescriptorSetLayout,
 		.pushConstantRangeCount = 0
 	};
 
-	mPipelineLayout = vk::raii::PipelineLayout{ device, pipelineLayoutInfo };
+	mVkPipelineLayout = vk::raii::PipelineLayout{ device, pipelineLayoutInfo };
 
 	vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{
 		.colorAttachmentCount = 1,
@@ -138,11 +138,11 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		.pMultisampleState = &multisampling,
 		.pColorBlendState = &colorBlending,
 		.pDynamicState = &dynamicState,
-		.layout = mPipelineLayout,
+		.layout = mVkPipelineLayout,
 		.renderPass = nullptr
 	};
 
-	mGraphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+	mVkGraphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
 
 #ifndef NDEBUG
 	mPipelineCreated = true;
@@ -183,12 +183,12 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	commandBuffer.beginRendering(renderingInfo);
 
 
-	memcpy(mMainBufferMapped, &ubo, sizeof(ubo));
+	memcpy(mVkMainBufferMapped, &ubo, sizeof(ubo));
 
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, *mMainDescriptorSet, nullptr);
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkPipelineLayout, 0, *mVkMainDescriptorSet, nullptr);
 
 
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mGraphicsPipeline);
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mVkGraphicsPipeline);
 
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(viewWidth),
 		static_cast<float>(viewHeight), 0.0f, 1.0f));
@@ -204,14 +204,14 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice) {
 	vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr };
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = 1, .pBindings = &uboLayoutBinding };
-	mDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+	mVkDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 
 	vk::DeviceSize bufferSize = sizeof(MainMeshUB);
 
 	createBuffer(device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mMainBuffer, mMainBufferMemory);
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVkMainBuffer, mVkMainBufferMemory);
 	
-	mMainBufferMapped = mMainBufferMemory.mapMemory(0, bufferSize);
+	mVkMainBufferMapped = mVkMainBufferMemory.mapMemory(0, bufferSize);
 
 
 	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, 1);
@@ -222,24 +222,24 @@ void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::Physical
 		.pPoolSizes = &poolSize
 	};
 
-	mDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
+	mVkDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
 
-	vk::DescriptorSetLayout layouts{ *mDescriptorSetLayout };
+	vk::DescriptorSetLayout layouts{ *mVkDescriptorSetLayout };
 	vk::DescriptorSetAllocateInfo allocInfo{
-		.descriptorPool = mDescriptorPool,
+		.descriptorPool = mVkDescriptorPool,
 		.descriptorSetCount = 1,
 		.pSetLayouts = &layouts
 	};
 	auto descriptorSets = device.allocateDescriptorSets(allocInfo);
-	mMainDescriptorSet = std::move(descriptorSets[0]);
+	mVkMainDescriptorSet = std::move(descriptorSets[0]);
 
 	vk::DescriptorBufferInfo bufferInfo{
-		.buffer = mMainBuffer,
+		.buffer = mVkMainBuffer,
 		.offset = 0,
 		.range = sizeof(MainMeshUB)
 	};
 	vk::WriteDescriptorSet descriptorWrite{
-		.dstSet = mMainDescriptorSet,
+		.dstSet = mVkMainDescriptorSet,
 		.dstBinding = 0,
 		.dstArrayElement = 0,
 		.descriptorCount = 1,

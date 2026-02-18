@@ -28,16 +28,16 @@ private:
 
 	void CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice);
 
-	vk::raii::Buffer mMainBuffer = nullptr;
-	vk::raii::DeviceMemory mMainBufferMemory = nullptr;
-	void* mMainBufferMapped = nullptr;
+	vk::raii::Buffer              mVkMainBuffer          = nullptr;
+	vk::raii::DeviceMemory        mVkMainBufferMemory    = nullptr;
+	void*                         mVkMainBufferMapped    = nullptr;
 
-	vk::raii::DescriptorPool mDescriptorPool = nullptr;
-	vk::raii::DescriptorSet mMainDescriptorSet = nullptr;
+	vk::raii::DescriptorPool      mVkDescriptorPool      = nullptr;
+	vk::raii::DescriptorSet       mVkMainDescriptorSet   = nullptr;
 
-	vk::raii::DescriptorSetLayout mDescriptorSetLayout = nullptr;
-	vk::raii::PipelineLayout mPipelineLayout = nullptr;
-	vk::raii::Pipeline mGraphicsPipeline = nullptr;
+	vk::raii::DescriptorSetLayout mVkDescriptorSetLayout = nullptr;
+	vk::raii::PipelineLayout      mVkPipelineLayout      = nullptr;
+	vk::raii::Pipeline            mVkGraphicsPipeline    = nullptr;
 
 	std::vector<char> ReadFile(const char* filepath);
 };
