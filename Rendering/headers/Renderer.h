@@ -3,6 +3,8 @@
 #include "Window.h"
 #include "Pipeline.h"
 
+#include "vertex.h"
+
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
@@ -17,10 +19,14 @@ public:
 
 	void Render(int width, int height);
 
+	void UpdateData(std::vector<vertex>& vertices, std::vector<unsigned int>& indices);
+
 	void Cleanup();
 
 private:
 	Window* mWindow;
+
+	vk::raii::Context mContext;
 
 	vk::raii::Instance               mVkInstance               = nullptr;
 	vk::raii::SurfaceKHR             mVkSurface                = nullptr;

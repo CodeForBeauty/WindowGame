@@ -11,6 +11,8 @@ public:
 
 	void StartApp();
 
+	Renderer* GetRenderer();
+
 protected:
 	virtual void Start() {};
 	virtual void Update() {};

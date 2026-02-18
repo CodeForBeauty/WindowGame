@@ -1,5 +1,7 @@
 #include "App.h"
 
+
+
 using namespace renderer;
 
 
@@ -25,4 +27,8 @@ void App::StartApp() {
 
 	End();
 	mRenderer.Cleanup();
+}
+
+Renderer* App::GetRenderer() {
+	return &mRenderer;
 }

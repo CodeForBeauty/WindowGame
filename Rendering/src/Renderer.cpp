@@ -115,13 +115,29 @@ void Renderer::Render(int width, int height) {
 	result = mVkPresentQueue.presentKHR(presentInfoKHR);
 }
 
+void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<unsigned int>& indices) {
+	mVertexBufferMemory = nullptr;
+	mVertexBuffer = nullptr;
+
+	mTotalVertexCount = vertices.size();
+
+	vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, bufferSize, vk::BufferUsageFlagBits::eVertexBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVertexBuffer, mVertexBufferMemory);
+
+	{
+		void* data = mVertexBufferMemory.mapMemory(0, bufferSize);
+		memcpy(data, vertices.data(), bufferSize);
+		mVertexBufferMemory.unmapMemory();
+	}
+}
+
 void Renderer::Cleanup() {
 	mVkDevice.waitIdle();
 }
 
 void Renderer::CreateInstance(const char* name) {
-	vk::raii::Context context;
-
 	vk::ApplicationInfo appInfo{
 		.pApplicationName = name,
 		.applicationVersion = VK_MAKE_VERSION(0, 0, 1),
@@ -129,19 +145,30 @@ void Renderer::CreateInstance(const char* name) {
 
 	SDL_Window* sdlWindow = mWindow->GetSDLWindow();
 
-	std::vector<const char*> iExtensions;
+	std::vector<const char*> iExtensions{ vk::EXTDebugUtilsExtensionName };
 	uint32_t extensionCount = 0;
 	{
 		const char* const* sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
 		iExtensions.insert(iExtensions.end(), sdlExtensions, sdlExtensions + extensionCount);
 	}
 
+	uint32_t extCount = 0;
+	vk::enumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
+	if (extCount > 0) {
+		std::vector<vk::ExtensionProperties> extensions(extCount);
+		if (vk::enumerateInstanceExtensionProperties(nullptr, &extCount, &extensions.front()) == vk::Result::eSuccess) {
+			for (vk::ExtensionProperties& extension : extensions) {
+				iExtensions.push_back(extension.extensionName);
+			}
+		}
+	}
+
 	vk::InstanceCreateInfo instanceCI{
 		.pApplicationInfo = &appInfo,
-		.enabledExtensionCount = extensionCount,
+		.enabledExtensionCount = extensionCount + 1,
 		.ppEnabledExtensionNames = iExtensions.data(),
 	};
-	mVkInstance = vk::raii::Instance { context, instanceCI };
+	mVkInstance = vk::raii::Instance { mContext, instanceCI };
 
 	VkSurfaceKHR tmpSurface;
 
@@ -150,9 +177,11 @@ void Renderer::CreateInstance(const char* name) {
 	}
 
 	mVkSurface = vk::raii::SurfaceKHR{ mVkInstance,  tmpSurface };
+
 }
 
 void Renderer::CreateDevice() {
+	auto tmp = mVkInstance.enumeratePhysicalDevices();
 	mVkPhysicalDevice = vk::raii::PhysicalDevice{ mVkInstance.enumeratePhysicalDevices()[0] };
 
 	std::vector<vk::QueueFamilyProperties> queueFamilyProperties = mVkPhysicalDevice.getQueueFamilyProperties();
@@ -249,28 +278,9 @@ void Renderer::CreateCommandPool() {
 }
 
 void Renderer::LoadRenderData() {
-	const std::vector<vertex> vertices = {
-		{{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
-		{{ 0.5f,  0.5f, 0.0f}, {1.0f, 0.0f}},
-		{{-0.5f,  0.5f, 0.0f}, {0.0f, 0.0f}},
-
-		{{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
-		{{ 0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
-		{{ 0.5f,  0.5f, 0.0f}, {1.0f, 0.0f}},
-	};
-
-	mTotalVertexCount = vertices.size();
-
-	vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-
-	createBuffer(mVkDevice, mVkPhysicalDevice, bufferSize, vk::BufferUsageFlagBits::eVertexBuffer,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVertexBuffer, mVertexBufferMemory);
-
-	{
-		void* data = mVertexBufferMemory.mapMemory(0, bufferSize);
-		memcpy(data, vertices.data(), bufferSize);
-		mVertexBufferMemory.unmapMemory();
-	}
+	std::vector<vertex> vertices{ {} };
+	std::vector<unsigned int> indices;
+	UpdateData(vertices, indices);
 }
 
 void Renderer::CreatePipeline() {

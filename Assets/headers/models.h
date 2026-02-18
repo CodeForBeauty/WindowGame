@@ -6,6 +6,6 @@
 
 namespace assets {
 
-std::vector<renderer::vertex> loadModel(const char* filepath);
+bool loadModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<unsigned int>& indices);
 
 } // namespace assets

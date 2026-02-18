@@ -18,6 +18,7 @@ void renderer::createBuffer(const vk::raii::Device& device, const vk::raii::Phys
 
 	outBuffer = vk::raii::Buffer(device, bufferInfo);
 
+
 	vk::MemoryRequirements memRequirements = outBuffer.getMemoryRequirements();
 
 	vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();

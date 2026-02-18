@@ -22,9 +22,6 @@ set (SLANG_COMPILER "${CMAKE_CURRENT_SOURCE_DIR}/slang/slangc.exe")
 set (SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set (SHADER_BINARY_DIR "${MAIN_BINARY_DIR}/shaders")
 
-
-
-
 file (GLOB SHADER_SOURCES "${SHADER_SOURCE_DIR}/*.slang")
 
 foreach (SHADER IN LISTS SHADER_SOURCES)
@@ -34,7 +31,7 @@ foreach (SHADER IN LISTS SHADER_SOURCES)
         OUTPUT ${SHADER_OUTPUT_FILE}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_BINARY_DIR}
         COMMAND ${SLANG_COMPILER} ${SHADER} -target spirv -matrix-layout-row-major -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o ${SHADER_OUTPUT_FILE}
-        DEPENDS ${SHADER} ${SHADER_BINARY_DIR}
+        DEPENDS ${SHADER}
         COMMENT "Compiling ${SHADER}"
     )
     message (COMMENT " compiled: ${SHADER_OUTPUT_FILE}")
@@ -42,7 +39,7 @@ foreach (SHADER IN LISTS SHADER_SOURCES)
     list (APPEND COMPILED_SHADERS ${SHADER_OUTPUT_FILE})
 endforeach()
 
-add_custom_target (compileShaders DEPENDS ${COMPILED_SHADERS} ${SHADER_BINARY_DIR})
+add_custom_target (compileShaders DEPENDS ${COMPILED_SHADERS})
 add_dependencies (rendering compileShaders)
 
 # Linking sdl
