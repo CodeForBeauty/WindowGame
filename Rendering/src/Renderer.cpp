@@ -33,59 +33,28 @@ void Renderer::Render(int width, int height) {
 
 	mVkCommandBuffer.begin({});
 
-	vk::ImageMemoryBarrier2 barrier = {
-		.srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		.srcAccessMask = {},
-		.dstStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		.dstAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite,
-		.oldLayout = vk::ImageLayout::eUndefined,
-		.newLayout = vk::ImageLayout::eColorAttachmentOptimal,
-		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		.image = mVkSwapImages[mCurrentSwapImage],
-		.subresourceRange = {
-			.aspectMask = vk::ImageAspectFlagBits::eColor,
-			.baseMipLevel = 0,
-			.levelCount = 1,
-			.baseArrayLayer = 0,
-			.layerCount = 1
-		}
-	};
-	vk::DependencyInfo dependencyInfo = {
-		.dependencyFlags = {},
-		.imageMemoryBarrierCount = 1,
-		.pImageMemoryBarriers = &barrier
-	};
-	mVkCommandBuffer.pipelineBarrier2(dependencyInfo);
+	TransitionImageView(mVkCommandBuffer, mVkSwapImages[mCurrentSwapImage],
+		vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
+		{}, vk::AccessFlagBits2::eColorAttachmentWrite,
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+		vk::ImageAspectFlagBits::eColor);
+	TransitionImageView(mVkCommandBuffer, *mVkDepthImage,
+		vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthAttachmentOptimal,
+		vk::AccessFlagBits2::eDepthStencilAttachmentWrite, vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+		vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
+		vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
+		vk::ImageAspectFlagBits::eDepth);
 
 
-	mPipeline.ApplyBasePass(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], width, height, mVkVertexBuffer, mVkIndexBuffer, mTotalIndexCount);
+	mPipeline.ApplyBasePass(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], mVkDepthImageView, width, height,
+		mVkVertexBuffer, mVkIndexBuffer, mTotalIndexCount);
 
 
-	vk::ImageMemoryBarrier2 barrier1 = {
-		.srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		.srcAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite,
-		.dstStageMask = vk::PipelineStageFlagBits2::eBottomOfPipe,
-		.dstAccessMask = {},
-		.oldLayout = vk::ImageLayout::eColorAttachmentOptimal,
-		.newLayout = vk::ImageLayout::ePresentSrcKHR,
-		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		.image = mVkSwapImages[mCurrentSwapImage],
-		.subresourceRange = {
-			.aspectMask = vk::ImageAspectFlagBits::eColor,
-			.baseMipLevel = 0,
-			.levelCount = 1,
-			.baseArrayLayer = 0,
-			.layerCount = 1
-		}
-	};
-	vk::DependencyInfo dependencyInfo1 = {
-		.dependencyFlags = {},
-		.imageMemoryBarrierCount = 1,
-		.pImageMemoryBarriers = &barrier1
-	};
-	mVkCommandBuffer.pipelineBarrier2(dependencyInfo1);
+	TransitionImageView(mVkCommandBuffer, mVkSwapImages[mCurrentSwapImage],
+		vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
+		vk::AccessFlagBits2::eColorAttachmentWrite, {},
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eBottomOfPipe,
+		vk::ImageAspectFlagBits::eColor);
 
 	mVkCommandBuffer.end();
 
@@ -281,6 +250,15 @@ void Renderer::CreateSwapchain() {
 		imageViewCI.image = img;
 		mVkImageViews.emplace_back(mVkDevice, imageViewCI);
 	}
+
+	// Depth
+	mVkDepthFormat = findSupportedFormat(mVkPhysicalDevice,
+		{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
+		vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+
+	createImage2D(mVkDevice, mVkPhysicalDevice, surfaceCaps.currentExtent.width, surfaceCaps.currentExtent.height, mVkDepthFormat, vk::ImageTiling::eOptimal,
+		vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, mVkDepthImage, mVkDepthImageMemory);
+	mVkDepthImageView = createImageView2D(mVkDevice, mVkDepthImage, mVkDepthFormat, vk::ImageAspectFlagBits::eDepth);
 }
 
 void Renderer::CreateCommandPool() {
@@ -309,5 +287,35 @@ void Renderer::CreatePipeline() {
 	mVkRenderFinishedSemaphore = vk::raii::Semaphore(mVkDevice, vk::SemaphoreCreateInfo());
 	mVkDrawFence = vk::raii::Fence(mVkDevice, { .flags = vk::FenceCreateFlagBits::eSignaled });
 
-	mPipeline.CreatePipeline(mVkDevice, mVkPhysicalDevice, imageFormat);
+	mPipeline.CreatePipeline(mVkDevice, mVkPhysicalDevice, imageFormat, mVkDepthFormat);
+}
+
+void Renderer::TransitionImageView(const vk::raii::CommandBuffer& buffer, const vk::Image& image, vk::ImageLayout oldLayout,
+		vk::ImageLayout newLayout, vk::AccessFlags2 srcAccessFlags, vk::AccessFlags2 dstAccessFlags,
+		vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask, vk::ImageAspectFlags aspectMask) {
+	vk::ImageMemoryBarrier2 barrier = {
+		.srcStageMask = srcStageMask,
+		.srcAccessMask = srcAccessFlags,
+		.dstStageMask = dstStageMask,
+		.dstAccessMask = dstAccessFlags,
+		.oldLayout = oldLayout,
+		.newLayout = newLayout,
+		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.image = image,
+		.subresourceRange = {
+			.aspectMask = aspectMask,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		}
+	};
+
+	vk::DependencyInfo dependencyInfo = {
+		.dependencyFlags = {},
+		.imageMemoryBarrierCount = 1,
+		.pImageMemoryBarriers = &barrier,
+	};
+	buffer.pipelineBarrier2(dependencyInfo);
 }

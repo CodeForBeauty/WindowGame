@@ -17,11 +17,11 @@ constexpr const char* mainShader = "shaders/forward.spv";
 constexpr const char* vertMainShaderFunc = "vertMain";
 constexpr const char* fragMainShaderFunc = "fragMain";
 
-Pipeline::Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat) {
-	CreatePipeline(device, physicalDevice, outputFormat);
+Pipeline::Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat, vk::Format depthFormat) {
+	CreatePipeline(device, physicalDevice, outputFormat, depthFormat);
 }
 
-void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat) {
+void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat, vk::Format depthFormat) {
 	CreateUniformBuffers(device, physicalDevice);
 
 	std::vector<char> shaderCode = ReadFile(mainShader);
@@ -70,6 +70,12 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		vk::VertexInputAttributeDescription{
 			.location = 1,
 			.binding = 0,
+			.format = vk::Format::eR32G32B32Sfloat,
+			.offset = offsetof(vertex, normal)
+		},
+		vk::VertexInputAttributeDescription{
+			.location = 2,
+			.binding = 0,
 			.format = vk::Format::eR32G32Sfloat,
 			.offset = offsetof(vertex, uv)
 		},
@@ -115,6 +121,15 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		.pAttachments = &colorBlendAttachment
 	};
 
+	// TODO: Add stencil tests
+	vk::PipelineDepthStencilStateCreateInfo depthStencil{
+		.depthTestEnable = vk::True,
+		.depthWriteEnable = vk::True,
+		.depthCompareOp = vk::CompareOp::eLess,
+		.depthBoundsTestEnable = vk::False,
+		.stencilTestEnable = vk::False
+	};
+
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
 		.setLayoutCount = 1,
 		.pSetLayouts = &*mVkDescriptorSetLayout,
@@ -125,7 +140,8 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 
 	vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{
 		.colorAttachmentCount = 1,
-		.pColorAttachmentFormats = &outputFormat
+		.pColorAttachmentFormats = &outputFormat,
+		.depthAttachmentFormat = depthFormat,
 	};
 	vk::GraphicsPipelineCreateInfo pipelineInfo{
 		.pNext = &pipelineRenderingCreateInfo,
@@ -136,10 +152,11 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		.pViewportState = &viewportState,
 		.pRasterizationState = &rasterizer,
 		.pMultisampleState = &multisampling,
+		.pDepthStencilState = &depthStencil,
 		.pColorBlendState = &colorBlending,
 		.pDynamicState = &dynamicState,
 		.layout = mVkPipelineLayout,
-		.renderPass = nullptr
+		.renderPass = nullptr,
 	};
 
 	mVkGraphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
@@ -149,28 +166,41 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 #endif
 }
 
-void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView,
+void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
 	int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, int indexCount) {
 
 	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
-	vk::RenderingAttachmentInfo attachmentInfo = {
+	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
+
+	vk::RenderingAttachmentInfo colorAttachmentInfo = {
 		.imageView = swapImageView,
 		.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
 		.loadOp = vk::AttachmentLoadOp::eClear,
 		.storeOp = vk::AttachmentStoreOp::eStore,
 		.clearValue = clearColor
 	};
+	vk::RenderingAttachmentInfo depthAttachmentInfo = {
+		.imageView = depthImageView,
+		.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+		.loadOp = vk::AttachmentLoadOp::eClear,
+		.storeOp = vk::AttachmentStoreOp::eDontCare,
+		.clearValue = clearDepth
+	};
 
 	vk::RenderingInfo renderingInfo = {
-		.renderArea = {.offset = { 0, 0 }, .extent = { .width = static_cast<uint32_t>(viewWidth), .height = static_cast<uint32_t>(viewHeight) } },
+		.renderArea = {
+			.offset = { 0, 0 },
+			.extent = { .width = static_cast<uint32_t>(viewWidth), .height = static_cast<uint32_t>(viewHeight) }
+		},
 		.layerCount = 1,
 		.colorAttachmentCount = 1,
-		.pColorAttachments = &attachmentInfo
+		.pColorAttachments = &colorAttachmentInfo,
+		.pDepthAttachment = &depthAttachmentInfo,
 	};
 
 	static lm2::vec3 rot{};
 
-	rot.z += 0.5f;
+	rot.y += 0.5f;
 
 	MainMeshUB ubo{
 		lm2::position3D<float>({ 0.5f, 0, -5 }) * lm2::mat4(lm2::rotation3D(rot)),

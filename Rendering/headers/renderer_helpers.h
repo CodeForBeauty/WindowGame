@@ -13,4 +13,16 @@ namespace renderer {
 	void copyBuffer(const vk::raii::Device& device, const vk::CommandPool& cmdPool, const vk::raii::Queue graphicsQueue,
 		vk::raii::Buffer& srcBuffer, vk::raii::Buffer& destBuffer, vk::DeviceSize size);
 
+	vk::Format findSupportedFormat(const vk::raii::PhysicalDevice& physicalDevice, const std::vector<vk::Format>& candidates,
+		vk::ImageTiling tiling, vk::FormatFeatureFlags features);
+
+	void createImage2D(const vk::raii::Device& device, const vk::raii::PhysicalDevice& physicalDevice, uint32_t width, uint32_t height,
+		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
+		vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory);
+
+	vk::raii::ImageView createImageView2D(const vk::raii::Device& device, const vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
+
+
+	uint32_t findMemoryType(const vk::raii::PhysicalDevice& physicalDevice, uint32_t memoryTypeBits, vk::MemoryPropertyFlags properties);
+
 } // namespace renderer

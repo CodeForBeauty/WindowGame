@@ -28,15 +28,15 @@ private:
 
 	vk::raii::Context mVkContext;
 
-	vk::raii::Instance               mVkInstance               = nullptr;
-	vk::raii::SurfaceKHR             mVkSurface                = nullptr;
+	vk::raii::Instance               mVkInstance                 = nullptr;
+	vk::raii::SurfaceKHR             mVkSurface                  = nullptr;
 
-	vk::raii::PhysicalDevice         mVkPhysicalDevice         = nullptr;
-	vk::raii::Device                 mVkDevice                 = nullptr;
-	vk::raii::Queue                  mVkGraphicsQueue          = nullptr;
-	vk::raii::Queue                  mVkPresentQueue           = nullptr;
+	vk::raii::PhysicalDevice         mVkPhysicalDevice           = nullptr;
+	vk::raii::Device                 mVkDevice                   = nullptr;
+	vk::raii::Queue                  mVkGraphicsQueue            = nullptr;
+	vk::raii::Queue                  mVkPresentQueue             = nullptr;
 
-	vk::raii::SwapchainKHR           mVkSwapchain              = nullptr;
+	vk::raii::SwapchainKHR           mVkSwapchain                = nullptr;
 	std::vector<vk::Image>           mVkSwapImages;
 	std::vector<vk::raii::ImageView> mVkImageViews;
 
@@ -52,6 +52,11 @@ private:
 	vk::raii::DeviceMemory           mVkVertexBufferMemory       = nullptr;
 	vk::raii::Buffer                 mVkIndexBuffer              = nullptr;
 	vk::raii::DeviceMemory           mVkIndexBufferMemory        = nullptr;
+
+	vk::Format                       mVkDepthFormat              = vk::Format::eUndefined;
+	vk::raii::Image                  mVkDepthImage               = nullptr;
+	vk::raii::DeviceMemory           mVkDepthImageMemory         = nullptr;
+	vk::raii::ImageView              mVkDepthImageView           = nullptr;
 	
 	uint32_t mVkGraphicsIndex = 0;
 	uint32_t mVkPresentIndex = 0;
@@ -68,6 +73,10 @@ private:
 	void CreateCommandPool();
 	void LoadRenderData();
 	void CreatePipeline();
+
+	void TransitionImageView(const vk::raii::CommandBuffer& buffer, const vk::Image& image, vk::ImageLayout oldLayout,
+		vk::ImageLayout newLayout, vk::AccessFlags2 srcAccessFlags, vk::AccessFlags2 dstAccessFlags,
+		vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask, vk::ImageAspectFlags aspectMask);
 };
 
 } // namespace renderer
