@@ -98,7 +98,7 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		.rasterizerDiscardEnable = vk::False,
 		.polygonMode = vk::PolygonMode::eFill,
 		.cullMode = vk::CullModeFlagBits::eBack,
-		.frontFace = vk::FrontFace::eClockwise,
+		.frontFace = vk::FrontFace::eCounterClockwise,
 		.depthBiasEnable = vk::False,
 		.depthBiasSlopeFactor = 1.0f,
 		.lineWidth = 1.0f
@@ -203,11 +203,9 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	rot.y += 0.5f;
 
 	MainMeshUB ubo{
-		lm2::position3D<float>({ 0.5f, 0, -5 }) * lm2::mat4(lm2::rotation3D(rot)),
-		//lm2::position3d<float>({ 0.1f, 0, -5 }),
-		lm2::identity4x4<float>(),
-		//lm2::ortho<float>(1, 1, 0.5f, 15.0f),
-		lm2::perspective<float>(45.0f, 0.5f, 10.0f, static_cast<float>(viewHeight) / viewWidth),
+		lm2::mat4(lm2::rotation3D(rot)),
+		lm2::position3D<float>({ 0.5f, 0, -5.0f }),
+		lm2::perspective<float>(45.0f, 0.5f, 100.0f, static_cast<float>(viewHeight) / viewWidth),
 	};
 
 	commandBuffer.beginRendering(renderingInfo);

@@ -80,7 +80,7 @@ struct matrix3x3 {
 		return {
 			{ x.x, x.y, x.z, 0 },
 			{ y.x, y.y, y.z, 0 },
-			{ z.x, z.y, y.z, 0 },
+			{ z.x, z.y, z.z, 0 },
 			{ 0,   0,   0,   1 },
 		};
 	}
@@ -247,10 +247,10 @@ template<typename T>
 matrix4x4<T> perspective(T fov, T near, T far, T ratio) {
 	T y = static_cast<T>(1) / std::tan( degrees2radians( fov / static_cast<T>(2) ) );
 	return {
-		{ y * ratio, 0,  0,                                0 },
-		{ 0,         y,  0,                                0 },
-		{ 0,         0, -( (far + near) / (far - near) ), -( (2 * near * far) / (far - near) ) },
-		{ 0,         0, -1,                                0 },
+		{ y * ratio,  0,  0,                                0 },
+		{ 0,         -y,  0,                                0 },
+		{ 0,          0, -( (far + near) / (far - near) ), -( (2 * near * far) / (far - near) ) },
+		{ 0,          0, -1,                                0 },
 	};
 }
 
@@ -288,7 +288,7 @@ matrix3x3<T> rotation3D(vector3D<T> degrees) {
 		{  0,      0,      1 },
 	};
 
-	return rotY * rotX * rotZ;
+	return rotZ * (rotX * rotY);
 }
 
 // Look at matrix
