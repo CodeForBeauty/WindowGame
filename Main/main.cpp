@@ -10,7 +10,7 @@ int main() {
 	std::vector<renderer::vertex> vertices;
 	std::vector<uint16_t> indices;
 
-	assets::loadModel("assets/suzanne.obj", vertices, indices);
+	assets::loadModel("assets/SuzanneSmooth.obj", vertices, indices);
 
 	rend->UpdateData(vertices, indices);
 
