@@ -32,6 +32,8 @@ private:
 
 	void CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice);
 
+	size_t mMainUniformAlignment;
+
 	vk::raii::Buffer              mVkMainBuffer          = nullptr;
 	vk::raii::DeviceMemory        mVkMainBufferMemory    = nullptr;
 	void*                         mVkMainBufferMapped    = nullptr;

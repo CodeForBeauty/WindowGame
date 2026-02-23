@@ -216,13 +216,13 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint16);
 
 	uint32_t uniformOffset = 0;
-
+	
 	for (size_t i = 0; i < solidMeshes.size(); ++i) {
 		ubo.model = lm2::position3D(solidMeshes[i].data.position) * lm2::mat4(lm2::rotation3D(solidMeshes[i].data.rotation));
 
-		memcpy(reinterpret_cast<char*>(mVkMainBufferMapped) + (uniformOffset * 256), &ubo, sizeof(ubo));
+		memcpy(reinterpret_cast<char*>(mVkMainBufferMapped) + (uniformOffset * mMainUniformAlignment), &ubo, sizeof(ubo));
 
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkPipelineLayout, 0, *mVkMainDescriptorSet, uniformOffset * 256);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkPipelineLayout, 0, *mVkMainDescriptorSet, uniformOffset * mMainUniformAlignment);
 		uniformOffset++;
 
 		commandBuffer.drawIndexed(solidMeshes[i].indexCount, 1, solidMeshes[i].indexOffset, solidMeshes[i].vertexOffset, 0);
@@ -232,11 +232,19 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 }
 
 void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice) {
+	auto properties = physicalDevice.getProperties();
+	size_t minUboAlignment = properties.limits.minUniformBufferOffsetAlignment;
+	mMainUniformAlignment = sizeof(MainMeshUB);
+	if (minUboAlignment > 0) {
+		mMainUniformAlignment = (mMainUniformAlignment + minUboAlignment - 1) & ~(minUboAlignment - 1);
+	}
+	// TODO: Separate static and dynamic parts of MainMeshUB
+
 	vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBufferDynamic, 1, vk::ShaderStageFlagBits::eVertex, nullptr };
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = 1, .pBindings = &uboLayoutBinding };
 	mVkDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 
-	vk::DeviceSize bufferSize = 256 * MAX_UNIFORM_COUNT;
+	vk::DeviceSize bufferSize = mMainUniformAlignment * MAX_UNIFORM_COUNT;
 
 	createBuffer(device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVkMainBuffer, mVkMainBufferMemory);
