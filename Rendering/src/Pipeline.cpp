@@ -167,7 +167,7 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 }
 
 void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
-	int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, int indexCount) {
+	int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, const std::vector<SolidMesh>& solidMeshes) {
 
 	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
 	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
@@ -198,23 +198,13 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 		.pDepthAttachment = &depthAttachmentInfo,
 	};
 
-	static lm2::vec3 rot{};
-
-	rot.y += 0.5f;
-
 	MainMeshUB ubo{
-		lm2::mat4(lm2::rotation3D(rot)),
+		lm2::identity4x4<float>(),
 		lm2::position3D<float>({ 0.5f, 0, -5.0f }),
 		lm2::perspective<float>(45.0f, 0.5f, 100.0f, static_cast<float>(viewHeight) / viewWidth),
 	};
 
 	commandBuffer.beginRendering(renderingInfo);
-
-
-	memcpy(mVkMainBufferMapped, &ubo, sizeof(ubo));
-
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkPipelineLayout, 0, *mVkMainDescriptorSet, nullptr);
-
 
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mVkGraphicsPipeline);
 
@@ -225,17 +215,28 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	commandBuffer.bindVertexBuffers(0, *vertexBuffer, { 0 });
 	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint16);
 
-	commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);
+	uint32_t uniformOffset = 0;
+
+	for (size_t i = 0; i < solidMeshes.size(); ++i) {
+		ubo.model = lm2::position3D(solidMeshes[i].data.position) * lm2::mat4(lm2::rotation3D(solidMeshes[i].data.rotation));
+
+		memcpy(reinterpret_cast<char*>(mVkMainBufferMapped) + (uniformOffset * 256), &ubo, sizeof(ubo));
+
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkPipelineLayout, 0, *mVkMainDescriptorSet, uniformOffset * 256);
+		uniformOffset++;
+
+		commandBuffer.drawIndexed(solidMeshes[i].indexCount, 1, solidMeshes[i].indexOffset, solidMeshes[i].vertexOffset, 0);
+	}
 
 	commandBuffer.endRendering();
 }
 
 void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice) {
-	vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr };
+	vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBufferDynamic, 1, vk::ShaderStageFlagBits::eVertex, nullptr };
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = 1, .pBindings = &uboLayoutBinding };
 	mVkDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 
-	vk::DeviceSize bufferSize = sizeof(MainMeshUB);
+	vk::DeviceSize bufferSize = 256 * MAX_UNIFORM_COUNT;
 
 	createBuffer(device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVkMainBuffer, mVkMainBufferMemory);
@@ -243,7 +244,7 @@ void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::Physical
 	mVkMainBufferMapped = mVkMainBufferMemory.mapMemory(0, bufferSize);
 
 
-	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, 1);
+	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBufferDynamic, 1);
 	vk::DescriptorPoolCreateInfo poolInfo{
 		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
 		.maxSets = 1,
@@ -272,7 +273,7 @@ void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::Physical
 		.dstBinding = 0,
 		.dstArrayElement = 0,
 		.descriptorCount = 1,
-		.descriptorType = vk::DescriptorType::eUniformBuffer,
+		.descriptorType = vk::DescriptorType::eUniformBufferDynamic,
 		.pBufferInfo = &bufferInfo
 	};
 	device.updateDescriptorSets(descriptorWrite, {});

@@ -4,6 +4,7 @@
 #include "Pipeline.h"
 
 #include "vertex.h"
+#include "MeshTypes.h"
 
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
@@ -19,11 +20,18 @@ public:
 
 	void Render(int width, int height);
 
-	void UpdateData(std::vector<vertex>& vertices, std::vector<uint16_t>& indices);
+	// vector of vertices and indices paired per mesh
+	void UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, std::vector<uint16_t> > >& data);
 
 	void Cleanup();
 
+	size_t GetSolidMeshCount() const;
+	MeshData* GetSolidMesh(size_t index);
+	MeshData* CopySolidMesh(size_t index);
+
 private:
+	std::vector<SolidMesh> mSolidMeshes;
+
 	Window* mWindow;
 
 	vk::raii::Context mVkContext;
@@ -64,8 +72,8 @@ private:
 	Pipeline mPipeline = nullptr;
 
 	int mCurrentSwapImage = 0;
-	int mTotalVertexCount = 0;
-	int mTotalIndexCount = 0;
+	uint32_t mTotalVertexCount = 0;
+	uint32_t mTotalIndexCount = 0;
 
 	void CreateInstance(const char* name);
 	void CreateDevice();

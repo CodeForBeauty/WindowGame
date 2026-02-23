@@ -12,11 +12,14 @@ App::App(int windowWidth, int windowHeight, const char* appName)
 void App::StartApp() {
 
 	Start();
+	auto mesh =	mRenderer.GetSolidMesh(0);
 
 	while (true) {
 		if (mWindow.PollEvents()) {
 			break;
 		}
+
+		mesh->rotation.y += 0.5f;
 
 		Update();
 

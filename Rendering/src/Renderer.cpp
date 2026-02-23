@@ -47,7 +47,7 @@ void Renderer::Render(int width, int height) {
 
 
 	mPipeline.ApplyBasePass(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], mVkDepthImageView, width, height,
-		mVkVertexBuffer, mVkIndexBuffer, mTotalIndexCount);
+		mVkVertexBuffer, mVkIndexBuffer, mSolidMeshes);
 
 
 	TransitionImageView(mVkCommandBuffer, mVkSwapImages[mCurrentSwapImage],
@@ -83,14 +83,34 @@ void Renderer::Render(int width, int height) {
 	result = mVkPresentQueue.presentKHR(presentInfoKHR);
 }
 
-void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<uint16_t>& indices) {
+void Renderer::UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, std::vector<uint16_t> > >& meshesData) {
 	mVkVertexBufferMemory = nullptr;
 	mVkVertexBuffer = nullptr;
 
-	mTotalVertexCount = vertices.size();
-	mTotalIndexCount = indices.size();
+	mVkIndexBufferMemory = nullptr;
+	mVkIndexBuffer = nullptr;
 
-	vk::DeviceSize vertBufSize = sizeof(vertices[0]) * vertices.size();
+	mTotalVertexCount = 0;
+	mTotalIndexCount = 0;
+
+	size_t vertexSize = sizeof(vertex);
+	size_t indexSize = sizeof(uint16_t);
+
+	mSolidMeshes.clear();
+
+	for (size_t i = 0; i < meshesData.size(); ++i) {
+		mSolidMeshes.emplace_back(
+			mTotalVertexCount,
+			static_cast<uint32_t>(meshesData[i].first.size()),
+			mTotalIndexCount,
+			static_cast<uint32_t>(meshesData[i].second.size())
+		);
+
+		mTotalVertexCount += static_cast<uint32_t>(meshesData[i].first.size());
+		mTotalIndexCount += static_cast<uint32_t>(meshesData[i].second.size());
+	}
+
+	vk::DeviceSize vertBufSize = vertexSize * mTotalVertexCount;
 
 	vk::raii::Buffer vertStagingBuffer = nullptr;
 	vk::raii::DeviceMemory vertStagingMemory = nullptr;
@@ -102,18 +122,19 @@ void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<uint16_t>& 
 		vk::MemoryPropertyFlagBits::eDeviceLocal, mVkVertexBuffer, mVkVertexBufferMemory);
 	
 	{
-		void* data = vertStagingMemory.mapMemory(0, vertBufSize);
-		memcpy(data, vertices.data(), vertBufSize);
+		char* data = reinterpret_cast<char*>(vertStagingMemory.mapMemory(0, vertBufSize));
+		for (size_t i = 0; i < meshesData.size(); ++i) {
+			size_t size = meshesData[i].first.size() * vertexSize;
+			memcpy(data, meshesData[i].first.data(), size);
+			data = data + size;
+		}
 		vertStagingMemory.unmapMemory();
 	}
 
 	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, vertStagingBuffer, mVkVertexBuffer, vertBufSize);
 
 	// Index buffer
-	mVkIndexBufferMemory = nullptr;
-	mVkIndexBuffer = nullptr;
-
-	vk::DeviceSize indexBufSize = sizeof(indices[0]) * indices.size();
+	vk::DeviceSize indexBufSize = indexSize * mTotalIndexCount;
 
 	vk::raii::Buffer indStagingBuffer = nullptr;
 	vk::raii::DeviceMemory indStagingMemory = nullptr;
@@ -125,8 +146,12 @@ void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<uint16_t>& 
 		vk::MemoryPropertyFlagBits::eDeviceLocal, mVkIndexBuffer, mVkIndexBufferMemory);
 
 	{
-		void* data = indStagingMemory.mapMemory(0, indexBufSize);
-		memcpy(data, indices.data(), indexBufSize);
+		char* data = reinterpret_cast<char*>(indStagingMemory.mapMemory(0, indexBufSize));
+		for (size_t i = 0; i < meshesData.size(); ++i) {
+			size_t size = meshesData[i].second.size() * indexSize;
+			memcpy(data, meshesData[i].second.data(), size);
+			data = data + size;
+		}
 		indStagingMemory.unmapMemory();
 	}
 
@@ -135,6 +160,28 @@ void Renderer::UpdateData(std::vector<vertex>& vertices, std::vector<uint16_t>& 
 
 void Renderer::Cleanup() {
 	mVkDevice.waitIdle();
+}
+
+size_t Renderer::GetSolidMeshCount() const {
+	return mSolidMeshes.size();
+}
+
+MeshData* Renderer::GetSolidMesh(size_t index) {
+	if (index >= mSolidMeshes.size()) {
+		return nullptr;
+	}
+
+	return &mSolidMeshes[index].data;
+}
+
+MeshData* Renderer::CopySolidMesh(size_t index) {
+	size_t size = mSolidMeshes.size();
+	if (index >= size) {
+		return nullptr;
+	}
+
+	mSolidMeshes.emplace_back(mSolidMeshes[index]);
+	return &mSolidMeshes[size].data;
 }
 
 void Renderer::CreateInstance(const char* name) {
@@ -279,7 +326,10 @@ void Renderer::CreateCommandPool() {
 void Renderer::LoadRenderData() {
 	std::vector<vertex> vertices{ {} };
 	std::vector<uint16_t> indices{ 0 };
-	UpdateData(vertices, indices);
+	std::vector< std::pair< std::vector<vertex>, std::vector<uint16_t> > > data{
+		{ { {} }, {0} }
+	};
+	UpdateSolidMeshes(data);
 }
 
 void Renderer::CreatePipeline() {

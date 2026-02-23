@@ -2,6 +2,8 @@
 
 #include "lm2.hpp"
 
+#include "MeshTypes.h"
+
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
@@ -11,6 +13,8 @@
 
 namespace renderer {
 
+constexpr int MAX_UNIFORM_COUNT = 1000;
+
 class Pipeline {
 public:
 	Pipeline(nullptr_t) {};
@@ -19,7 +23,7 @@ public:
 	void CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat, vk::Format depthFormat);
 
 	void ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
-		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, int indexCount);
+		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, const std::vector<SolidMesh>& solidMeshes);
 
 private:
 #ifndef NDEBUG
