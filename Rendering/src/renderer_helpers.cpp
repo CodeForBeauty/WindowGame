@@ -35,21 +35,11 @@ void renderer::createBuffer(const vk::raii::Device& device, const vk::raii::Phys
 
 void renderer::copyBuffer(const vk::raii::Device& device, const vk::CommandPool& cmdPool, const vk::raii::Queue graphicsQueue,
 		vk::raii::Buffer& srcBuffer, vk::raii::Buffer& destBuffer, vk::DeviceSize size) {
-	vk::CommandBufferAllocateInfo allocInfo{
-		.commandPool = cmdPool,
-		.level = vk::CommandBufferLevel::ePrimary,
-		.commandBufferCount = 1
-	};
-	vk::raii::CommandBuffer commandCopyBuffer = std::move(device.allocateCommandBuffers(allocInfo).front());
-
-	commandCopyBuffer.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+	vk::raii::CommandBuffer commandCopyBuffer = startSingleTimeCommands(device, cmdPool);
 
 	commandCopyBuffer.copyBuffer(srcBuffer, destBuffer, vk::BufferCopy(0, 0, size));
 
-	commandCopyBuffer.end();
-
-	graphicsQueue.submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandCopyBuffer }, nullptr);
-	graphicsQueue.waitIdle();
+	endAndWaitSingleTimeCommands(commandCopyBuffer, graphicsQueue);
 }
 
 vk::Format renderer::findSupportedFormat(const vk::raii::PhysicalDevice& physicalDevice, const std::vector<vk::Format>& candidates,
@@ -94,6 +84,61 @@ void renderer::createImage2D(const vk::raii::Device& device, const vk::raii::Phy
 	outImage.bindMemory(outImageMemory, 0);
 }
 
+void renderer::copyBufferToImage2D(const vk::raii::Device& device, const vk::CommandPool& cmdPool, const vk::raii::Queue graphicsQueue,
+		vk::raii::Buffer& srcBuffer, vk::raii::Image& destImage, uint32_t width, uint32_t height) {
+	vk::raii::CommandBuffer commandCopyBuffer = startSingleTimeCommands(device, cmdPool);
+
+	vk::BufferImageCopy region{
+		.bufferOffset = 0,
+		.bufferRowLength = 0,
+		.bufferImageHeight = 0,
+		.imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 },
+		.imageOffset = {0, 0, 0},
+		.imageExtent = {width, height, 1}
+	};
+
+	commandCopyBuffer.copyBufferToImage(srcBuffer, destImage, vk::ImageLayout::eTransferDstOptimal, region);
+
+	endAndWaitSingleTimeCommands(commandCopyBuffer, graphicsQueue);
+}
+
+void renderer::transitionImageLayout(const vk::raii::Device& device, const vk::CommandPool& cmdPool, const vk::raii::Queue graphicsQueue,
+		vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+	vk::raii::CommandBuffer cmdBuffer = startSingleTimeCommands(device, cmdPool);
+
+	vk::ImageMemoryBarrier barrier{
+		.oldLayout = oldLayout,
+		.newLayout = newLayout,
+		.image = image,
+		.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 }
+	};
+
+	vk::PipelineStageFlags sourceStage;
+	vk::PipelineStageFlags destinationStage;
+
+	if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
+		barrier.srcAccessMask = {};
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+		sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+		destinationStage = vk::PipelineStageFlagBits::eTransfer;
+	}
+	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+		barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+		sourceStage = vk::PipelineStageFlagBits::eTransfer;
+		destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+	}
+	else {
+		throw std::invalid_argument("unsupported layout transition!");
+	}
+
+	cmdBuffer.pipelineBarrier(sourceStage, destinationStage, {}, {}, nullptr, barrier);
+
+	endAndWaitSingleTimeCommands(cmdBuffer, graphicsQueue);
+}
+
 vk::raii::ImageView renderer::createImageView2D(const vk::raii::Device& device, const vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags) {
 	vk::ImageViewCreateInfo viewInfo{
 		.image = image,
@@ -117,4 +162,24 @@ uint32_t renderer::findMemoryType(const vk::raii::PhysicalDevice& physicalDevice
 	}
 
 	return memIdx;
+}
+
+vk::raii::CommandBuffer renderer::startSingleTimeCommands(const vk::raii::Device& device, const vk::CommandPool& cmdPool) {
+	vk::CommandBufferAllocateInfo allocInfo{
+		.commandPool = cmdPool,
+		.level = vk::CommandBufferLevel::ePrimary,
+		.commandBufferCount = 1
+	};
+	vk::raii::CommandBuffer buffer = std::move(device.allocateCommandBuffers(allocInfo).front());
+
+	buffer.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+
+	return buffer;
+}
+
+void renderer::endAndWaitSingleTimeCommands(vk::raii::CommandBuffer& buffer, const vk::raii::Queue queue) {
+	buffer.end();
+
+	queue.submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*buffer }, nullptr);
+	queue.waitIdle();
 }

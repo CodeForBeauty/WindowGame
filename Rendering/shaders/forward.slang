@@ -5,6 +5,7 @@ struct MainMeshUB {
 };
 ConstantBuffer<MainMeshUB> uboMain;
 
+
 struct VSInput {
     float3 inPosition;
     float3 inNormal;
@@ -28,6 +29,8 @@ VertexOutput vertMain(VSInput input) {
     return output;
 }
 
+Sampler2D allTextures[1];
+
 [shader("fragment")]
 float4 fragMain(VertexOutput inVert) : SV_Target {
     const float3 lightDir = normalize(float3(-0, -1.5, -1.5));
@@ -39,7 +42,8 @@ float4 fragMain(VertexOutput inVert) : SV_Target {
     float specAngle = max(dot(halfDir, inVert.normal), 0);
     float specular = pow(specAngle, 16);
 
-    //return float4(abs(viewDir), 1);
-    return float4(lambertian + specular);
+    // return float4(abs(viewDir), 1);
+    return float4(allTextures[0].Sample(inVert.uv));
+    //return float4(lambertian + specular);
     //return float4(inVert.normal, 1.0);
 }

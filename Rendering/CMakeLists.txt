@@ -2,6 +2,8 @@ file (GLOB INCLUDE_HEADERS "headers/*")
 file (GLOB INCLUDE_SOURCES "src/*")
 add_library (rendering STATIC ${INCLUDE_HEADERS} ${INCLUDE_SOURCES})
 
+target_link_libraries (rendering PUBLIC assetLib)
+
 target_include_directories (rendering BEFORE PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/dep/include
 		${CMAKE_CURRENT_SOURCE_DIR}/headers

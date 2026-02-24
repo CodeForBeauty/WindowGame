@@ -26,6 +26,8 @@ int main() {
 	auto mesh3 = rend->CopySolidMesh(0);
 	mesh3->position.y = 1.5f;
 
+	rend->LoadTexture("assets/water.jpg");
+
 	app.StartApp();
 
 	return 0;

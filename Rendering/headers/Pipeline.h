@@ -13,26 +13,32 @@
 
 namespace renderer {
 
-constexpr int MAX_UNIFORM_COUNT = 1000;
+constexpr uint32_t MAX_UNIFORM_COUNT = 1000;
+
+struct TextureData;
 
 class Pipeline {
 public:
-	Pipeline(nullptr_t) {};
-	Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat, vk::Format depthFormat);
+	Pipeline(nullptr_t) : mMainUniformAlignment{ 0 } {};
+	Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat,
+		vk::Format depthFormat, const std::vector<TextureData>& textures);
 
-	void CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat, vk::Format depthFormat);
+	void CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat,
+		vk::Format depthFormat, const std::vector<TextureData>& textures);
 
 	void ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
 		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, const std::vector<SolidMesh>& solidMeshes);
+
+	void UpdateTextures(const vk::raii::Device& device, const std::vector<TextureData>& textures);
 
 private:
 #ifndef NDEBUG
 	bool mPipelineCreated = false;
 #endif
 
-	void CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice);
+	void CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, const std::vector<TextureData>& textures);
 
-	size_t mMainUniformAlignment;
+	uint32_t mMainUniformAlignment = 0;
 
 	vk::raii::Buffer              mVkMainBuffer          = nullptr;
 	vk::raii::DeviceMemory        mVkMainBufferMemory    = nullptr;

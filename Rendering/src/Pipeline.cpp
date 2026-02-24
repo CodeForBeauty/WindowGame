@@ -17,12 +17,14 @@ constexpr const char* mainShader = "shaders/forward.spv";
 constexpr const char* vertMainShaderFunc = "vertMain";
 constexpr const char* fragMainShaderFunc = "fragMain";
 
-Pipeline::Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat, vk::Format depthFormat) {
-	CreatePipeline(device, physicalDevice, outputFormat, depthFormat);
+Pipeline::Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat,
+		vk::Format depthFormat, const std::vector<TextureData>& textures) {
+	CreatePipeline(device, physicalDevice, outputFormat, depthFormat, textures);
 }
 
-void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat, vk::Format depthFormat) {
-	CreateUniformBuffers(device, physicalDevice);
+void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat,
+		vk::Format depthFormat, const std::vector<TextureData>& textures) {
+	CreateUniformBuffers(device, physicalDevice, textures);
 
 	std::vector<char> shaderCode = ReadFile(mainShader);
 
@@ -231,17 +233,45 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	commandBuffer.endRendering();
 }
 
-void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice) {
+void Pipeline::UpdateTextures(const vk::raii::Device& device, const std::vector<TextureData>& textures) {
+	std::vector<vk::DescriptorImageInfo> imageInfos(textures.size());
+	for (size_t i = 0; i < textures.size(); ++i) {
+		imageInfos[i] = vk::DescriptorImageInfo{
+			.sampler = textures[i].sampler,
+			.imageView = textures[i].imageView,
+			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
+		};
+	}
+	std::array<vk::WriteDescriptorSet, 1> descriptorWrites{
+		vk::WriteDescriptorSet{
+			.dstSet = mVkMainDescriptorSet,
+			.dstBinding = 1,
+			.dstArrayElement = 0,
+			.descriptorCount = static_cast<uint32_t>(imageInfos.size()),
+			.descriptorType = vk::DescriptorType::eCombinedImageSampler,
+			.pImageInfo = imageInfos.data()
+		},
+	};
+	device.updateDescriptorSets(descriptorWrites, {});
+}
+
+void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, const std::vector<TextureData>& textures) {
 	auto properties = physicalDevice.getProperties();
-	size_t minUboAlignment = properties.limits.minUniformBufferOffsetAlignment;
+	uint32_t minUboAlignment = static_cast<uint32_t>(properties.limits.minUniformBufferOffsetAlignment);
 	mMainUniformAlignment = sizeof(MainMeshUB);
 	if (minUboAlignment > 0) {
 		mMainUniformAlignment = (mMainUniformAlignment + minUboAlignment - 1) & ~(minUboAlignment - 1);
 	}
 	// TODO: Separate static and dynamic parts of MainMeshUB
 
-	vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBufferDynamic, 1, vk::ShaderStageFlagBits::eVertex, nullptr };
-	vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = 1, .pBindings = &uboLayoutBinding };
+	std::array uboLayoutBindings{
+		vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBufferDynamic, 1, vk::ShaderStageFlagBits::eVertex, nullptr },
+		vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 60, vk::ShaderStageFlagBits::eFragment, nullptr },
+	};
+	vk::DescriptorSetLayoutCreateInfo layoutInfo{
+		.bindingCount = static_cast<uint32_t>(uboLayoutBindings.size()),
+		.pBindings = uboLayoutBindings.data()
+	};
 	mVkDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 
 	vk::DeviceSize bufferSize = mMainUniformAlignment * MAX_UNIFORM_COUNT;
@@ -252,12 +282,15 @@ void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::Physical
 	mVkMainBufferMapped = mVkMainBufferMemory.mapMemory(0, bufferSize);
 
 
-	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBufferDynamic, 1);
+	std::array poolSizes{
+		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBufferDynamic, 1),
+		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 60),
+	};
 	vk::DescriptorPoolCreateInfo poolInfo{
 		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
 		.maxSets = 1,
-		.poolSizeCount = 1,
-		.pPoolSizes = &poolSize
+		.poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+		.pPoolSizes = poolSizes.data()
 	};
 
 	mVkDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
@@ -274,17 +307,38 @@ void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::Physical
 	vk::DescriptorBufferInfo bufferInfo{
 		.buffer = mVkMainBuffer,
 		.offset = 0,
-		.range = sizeof(MainMeshUB)
+		.range = mMainUniformAlignment
 	};
-	vk::WriteDescriptorSet descriptorWrite{
-		.dstSet = mVkMainDescriptorSet,
-		.dstBinding = 0,
-		.dstArrayElement = 0,
-		.descriptorCount = 1,
-		.descriptorType = vk::DescriptorType::eUniformBufferDynamic,
-		.pBufferInfo = &bufferInfo
+	std::vector<vk::WriteDescriptorSet> descriptorWrites{
+		vk::WriteDescriptorSet{
+			.dstSet = mVkMainDescriptorSet,
+			.dstBinding = 0,
+			.dstArrayElement = 0,
+			.descriptorCount = 1,
+			.descriptorType = vk::DescriptorType::eUniformBufferDynamic,
+			.pBufferInfo = &bufferInfo
+		}
 	};
-	device.updateDescriptorSets(descriptorWrite, {});
+	if (textures.size() > 0) {
+		std::vector<vk::DescriptorImageInfo> imageInfos(textures.size());
+		for (size_t i = 0; i < textures.size(); ++i) {
+			imageInfos[i] = vk::DescriptorImageInfo{
+				.sampler = textures[i].sampler,
+				.imageView = textures[i].imageView,
+				.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
+			};
+		}
+
+		descriptorWrites.push_back(vk::WriteDescriptorSet{
+			.dstSet = mVkMainDescriptorSet,
+			.dstBinding = 1,
+			.dstArrayElement = 0,
+			.descriptorCount = static_cast<uint32_t>(imageInfos.size()),
+			.descriptorType = vk::DescriptorType::eCombinedImageSampler,
+			.pImageInfo = imageInfos.data()
+		});
+	}
+	device.updateDescriptorSets(descriptorWrites, {});
 }
 
 std::vector<char> Pipeline::ReadFile(const char* filepath) {

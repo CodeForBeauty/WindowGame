@@ -20,9 +20,19 @@ namespace renderer {
 		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
 		vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory);
 
+	// The image layout is assumed to be Transfer optimal
+	void copyBufferToImage2D(const vk::raii::Device& device, const vk::CommandPool& cmdPool, const vk::raii::Queue graphicsQueue,
+		vk::raii::Buffer& srcBuffer, vk::raii::Image& destImage, uint32_t width, uint32_t height);
+
+	void transitionImageLayout(const vk::raii::Device& device, const vk::CommandPool& cmdPool, const vk::raii::Queue graphicsQueue,
+		vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+
 	vk::raii::ImageView createImageView2D(const vk::raii::Device& device, const vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
 
 
 	uint32_t findMemoryType(const vk::raii::PhysicalDevice& physicalDevice, uint32_t memoryTypeBits, vk::MemoryPropertyFlags properties);
+
+	vk::raii::CommandBuffer startSingleTimeCommands(const vk::raii::Device& device, const vk::CommandPool& cmdPool);
+	void endAndWaitSingleTimeCommands(vk::raii::CommandBuffer& buffer, const vk::raii::Queue queue);
 
 } // namespace renderer

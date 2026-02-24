@@ -14,13 +14,15 @@
 
 namespace renderer {
 
+struct TextureData;
+
 class Renderer {
 public:
 	Renderer(Window& window, const char* name);
 
 	void Render(int width, int height);
 
-	// vector of vertices and indices paired per mesh
+	// data - vector of vertices and indices paired per mesh
 	void UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, std::vector<uint16_t> > >& data);
 
 	void Cleanup();
@@ -28,6 +30,9 @@ public:
 	size_t GetSolidMeshCount() const;
 	MeshData* GetSolidMesh(size_t index);
 	MeshData* CopySolidMesh(size_t index);
+
+	// Returns index of the texture in a vector
+	size_t LoadTexture(const char* filepath);
 
 private:
 	std::vector<SolidMesh> mSolidMeshes;
@@ -75,6 +80,9 @@ private:
 	uint32_t mTotalVertexCount = 0;
 	uint32_t mTotalIndexCount = 0;
 
+	std::vector<TextureData> mAllTextures;
+
+
 	void CreateInstance(const char* name);
 	void CreateDevice();
 	void CreateSwapchain();
@@ -85,6 +93,17 @@ private:
 	void TransitionImageView(const vk::raii::CommandBuffer& buffer, const vk::Image& image, vk::ImageLayout oldLayout,
 		vk::ImageLayout newLayout, vk::AccessFlags2 srcAccessFlags, vk::AccessFlags2 dstAccessFlags,
 		vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask, vk::ImageAspectFlags aspectMask);
+};
+
+struct TextureData {
+	uint32_t width = 0;
+	uint32_t height = 0;
+	vk::Format format = vk::Format::eUndefined;
+
+	vk::raii::DeviceMemory memory = nullptr;
+	vk::raii::Image image = nullptr;
+	vk::raii::ImageView imageView = nullptr;
+	vk::raii::Sampler sampler = nullptr;
 };
 
 } // namespace renderer

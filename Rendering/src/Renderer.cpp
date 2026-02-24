@@ -2,6 +2,7 @@
 
 #include "vertex.h"
 #include "renderer_helpers.h"
+#include "textures.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -184,6 +185,79 @@ MeshData* Renderer::CopySolidMesh(size_t index) {
 	return &mSolidMeshes[size].data;
 }
 
+size_t Renderer::LoadTexture(const char* filepath) {
+	int width, height, channels;
+	assets::tex_uc* pixels = assets::loadTexture(filepath, &width, &height, &channels);
+
+	if (channels == 3) {
+		channels = 4;
+	}
+
+	vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(width) * height * channels;
+
+	vk::raii::Buffer staginBuffer = nullptr;
+	vk::raii::DeviceMemory stagingMemory = nullptr;
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, imageSize, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, staginBuffer, stagingMemory);
+
+	void* data = stagingMemory.mapMemory(0, imageSize);
+	memcpy(data, pixels, imageSize);
+	stagingMemory.unmapMemory();
+
+	assets::freeTextureData(pixels);
+
+	TextureData texData;
+	texData.width = static_cast<uint32_t>(width);
+	texData.height = static_cast<uint32_t>(height);
+	switch (channels) {
+	case 1:
+		texData.format = vk::Format::eR8Srgb;
+		break;
+	case 2:
+		texData.format = vk::Format::eR8G8Srgb;
+		break;
+	case 3:
+		texData.format = vk::Format::eR8G8B8Srgb;
+		break;
+	case 4:
+		texData.format = vk::Format::eR8G8B8A8Srgb;
+		break;
+	default:
+		throw std::invalid_argument("unsupported channel count");
+	}
+
+	createImage2D(mVkDevice, mVkPhysicalDevice, texData.width, texData.height, texData.format, vk::ImageTiling::eOptimal,
+		vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, texData.image, texData.memory);
+
+	transitionImageLayout(mVkDevice, mVkCommandPool, mVkGraphicsQueue, texData.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	copyBufferToImage2D(mVkDevice, mVkCommandPool, mVkGraphicsQueue, staginBuffer, texData.image, texData.width, texData.height);
+	transitionImageLayout(mVkDevice, mVkCommandPool, mVkGraphicsQueue, texData.image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+	texData.imageView = createImageView2D(mVkDevice, texData.image, texData.format, vk::ImageAspectFlagBits::eColor);
+
+	vk::PhysicalDeviceProperties properties = mVkPhysicalDevice.getProperties();
+	vk::SamplerCreateInfo samplerInfo{
+		.magFilter = vk::Filter::eLinear,
+		.minFilter = vk::Filter::eLinear,
+		.mipmapMode = vk::SamplerMipmapMode::eLinear,
+		.addressModeU = vk::SamplerAddressMode::eRepeat,
+		.addressModeV = vk::SamplerAddressMode::eRepeat,
+		.addressModeW = vk::SamplerAddressMode::eRepeat,
+		.anisotropyEnable = vk::True,
+		.maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+		.compareEnable = vk::False,
+		.compareOp = vk::CompareOp::eAlways
+	};
+	texData.sampler = vk::raii::Sampler(mVkDevice, samplerInfo);
+
+	mAllTextures.push_back(std::move(texData));
+
+	mPipeline.UpdateTextures(mVkDevice, mAllTextures);
+
+	return mAllTextures.size() - 1;
+}
+
 void Renderer::CreateInstance(const char* name) {
 	vk::ApplicationInfo appInfo{
 		.pApplicationName = name,
@@ -238,6 +312,7 @@ void Renderer::CreateDevice() {
 	std::vector<const char*> deviceExtensions = { vk::KHRSwapchainExtensionName };
 
 	vk::PhysicalDeviceFeatures2 features = mVkPhysicalDevice.getFeatures2();
+	features.features.samplerAnisotropy = true;
 	vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT extendedDynamicStateFeatures{
 		.extendedDynamicState = vk::True
 	};
@@ -337,7 +412,7 @@ void Renderer::CreatePipeline() {
 	mVkRenderFinishedSemaphore = vk::raii::Semaphore(mVkDevice, vk::SemaphoreCreateInfo());
 	mVkDrawFence = vk::raii::Fence(mVkDevice, { .flags = vk::FenceCreateFlagBits::eSignaled });
 
-	mPipeline.CreatePipeline(mVkDevice, mVkPhysicalDevice, imageFormat, mVkDepthFormat);
+	mPipeline.CreatePipeline(mVkDevice, mVkPhysicalDevice, imageFormat, mVkDepthFormat, mAllTextures);
 }
 
 void Renderer::TransitionImageView(const vk::raii::CommandBuffer& buffer, const vk::Image& image, vk::ImageLayout oldLayout,

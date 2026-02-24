@@ -2,7 +2,11 @@
 
 namespace assets {
 
+using tex_uc = unsigned char;
+
 // Need to free memory after use
-unsigned char* loadTexture(const char* filepath, int* width, int* height, int* channels);
+tex_uc* loadTexture(const char* filepath, int* width, int* height, int* channels);
+
+void freeTextureData(tex_uc* data);
 
 } // namespace assets

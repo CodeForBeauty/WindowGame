@@ -8,7 +8,7 @@ using namespace renderer;
 
 
 Window::Window(int width, int height, const char* name)
-	: mWidth{ width }, mHeight{ height }, mName{ name }, mSDLWindow{ nullptr } {
+	: mWidth{ width }, mHeight{ height }, mName{ name }, mSDLWindow{ nullptr }, mCurrentEvent{ 0 } {
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
 		throw std::runtime_error("SDL failed to initialize");
 	}
