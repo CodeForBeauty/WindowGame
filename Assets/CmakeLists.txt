@@ -4,12 +4,19 @@ add_library (assetLib STATIC ${INCLUDE_SOURCES} ${INCLUDE_HEADERS})
 
 target_include_directories (assetLib BEFORE PUBLIC
 			"${CMAKE_CURRENT_SOURCE_DIR}/headers"
-			"${CMAKE_CURRENT_SOURCE_DIR}/dep/headers"
 			${COMMON_INCLUDE_DIR}
 )
 
 set_target_properties (assetLib PROPERTIES LINKER_LANGUAGE CXX)
 
+
+add_executable (assetConverter "${CMAKE_CURRENT_SOURCE_DIR}/AssetConverter/main.cpp")
+
+target_include_directories (assetConverter BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/dep/headers" ${COMMON_INCLUDE_DIR})
+
+target_link_libraries (assetConverter assetLib)
+
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET assetLib PROPERTY CXX_STANDARD 20)
+  set_property(TARGET assetConverter PROPERTY CXX_STANDARD 20)
 endif()
