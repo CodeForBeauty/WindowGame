@@ -8,8 +8,7 @@
 #include <sstream>
 
 
-bool assets::loadModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<uint16_t>& indices) {
-	/*TEMPORARY FUNCTIONALITY*/
+bool assets::loadObjModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<uint16_t>& indices) {
 	std::ifstream file{ filepath };
 
 	std::string line;
@@ -104,4 +103,22 @@ bool assets::loadModel(const char* filepath, std::vector<renderer::vertex>& vert
 
 	file.close();
 	return true;
+}
+
+void assets::readModelFromMemory(std::vector<renderer::vertex>& vertices, std::vector<uint16_t>& indices, std::istream& stream) {
+	size_t verticesSize;
+	stream >> verticesSize;
+	stream.ignore(1);
+
+	vertices.resize(verticesSize / sizeof(renderer::vertex));
+
+	stream.read(reinterpret_cast<char*>(vertices.data()), verticesSize);
+
+	size_t indicesSize;
+	stream >> indicesSize;
+	stream.ignore(1);
+
+	indices.resize(indicesSize / sizeof(uint16_t));
+
+	stream.read(reinterpret_cast<char*>(indices.data()), indicesSize);
 }

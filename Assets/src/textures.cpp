@@ -4,6 +4,8 @@
 
 #include <fstream>
 
+#include <iostream>
+
 assets::tex_uc* assets::loadTexture(const char* filepath, int* width, int* height, int* channels) {
 	std::ifstream file(filepath);
 
@@ -44,6 +46,22 @@ void assets::writeTexture(tex_uc* data, int width, int height, int channels, std
 	size_t size = static_cast<size_t>(width) * height * channels;
 
 	stream.write(reinterpret_cast<const char*>(data), size);
+}
+
+assets::tex_uc* assets::readTexture(int* width, int* height, int* channels, std::istream& stream) {
+	stream >> *width;
+	stream >> *height;
+	stream >> *channels;
+
+	stream.ignore(1);
+
+	size_t size = static_cast<size_t>(*width) * (*height) * (*channels);
+
+	tex_uc* data = reinterpret_cast<tex_uc*>(malloc(size));
+
+	stream.read(reinterpret_cast<char*>(data), size);
+
+	return data;
 }
 
 void assets::freeTextureData(tex_uc* data) {

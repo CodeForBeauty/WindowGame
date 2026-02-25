@@ -68,9 +68,10 @@ static void getAttribData(const tinygltf::Model& model, const tinygltf::Primitiv
 		buffer.data.data() + view.byteOffset + accessor.byteOffset;
 
 	stride = accessor.ByteStride(view);
-	if (stride == 0)
+	if (stride == 0) {
 		stride = tinygltf::GetNumComponentsInType(accessor.type) *
-		tinygltf::GetComponentSizeInBytes(accessor.componentType);
+			tinygltf::GetComponentSizeInBytes(accessor.componentType);
+	}
 
 	data = reinterpret_cast<const float*>(dataPtr);
 	count = accessor.count;
@@ -122,17 +123,19 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 				int norStride = 0;
 				int uvStride = 0;
 
-				int vertexCount = 0;
+				int posVertexCount = 0;
+				int norVertexCount = 0;
+				int uvVertexCount = 0;
 
-				getAttribData1(model, primitive, "POSITION", posData, posStride, vertexCount);
-				getAttribData1(model, primitive, "NORMAL", norData, norStride, vertexCount);
-				getAttribData1(model, primitive, "TEXCOORD_0", uvData, uvStride, vertexCount);
+				getAttribData1(model, primitive, "POSITION", posData, posStride, posVertexCount);
+				getAttribData1(model, primitive, "NORMAL", norData, norStride, norVertexCount);
+				getAttribData1(model, primitive, "TEXCOORD_0", uvData, uvStride, uvVertexCount);
 				
 				renderer::vertex tmpVertex{};
 
-				stream << sizeof(renderer::vertex) * vertexCount << "\n";
+				stream << (sizeof(renderer::vertex) * posVertexCount) << "\n";
 
-				for (int i = 0; i < vertexCount; ++i) {
+				for (int i = 0; i < posVertexCount; ++i) {
 					const float* p = reinterpret_cast<const float*>(
 						reinterpret_cast<const unsigned char*>(posData) + posStride * i);
 
@@ -149,6 +152,8 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 					stream.write(reinterpret_cast<char*>(&tmpVertex), sizeof(renderer::vertex));
 				}
 
+				stream << "\n";
+
 				const tinygltf::Accessor& accessorIdx = model.accessors[primitive.indices];
 				const tinygltf::BufferView& bufferViewIdx = model.bufferViews[accessorIdx.bufferView];
 
@@ -156,9 +161,19 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 
 				const char* indices = reinterpret_cast<const char*>(&bufferIdx.data[bufferViewIdx.byteOffset + accessorIdx.byteOffset]);
 
-				size_t indicesSize = 0;
+				stream << (accessorIdx.count * sizeof(uint16_t)) << "\n";
 
-				stream << accessorIdx.count * sizeof(unsigned int) << "\n";
+				const uint16_t* buf1 = reinterpret_cast<const uint16_t*>(indices);
+				uint16_t maxVal = 0;
+				for (size_t i = 0; i < accessorIdx.count; ++i) {
+					if (buf1[i] > maxVal) {
+						maxVal = buf1[i];
+					}
+				}
+				std::cout << sizeof(uint16_t) << "\n";
+				std::cout << maxVal << "\n";
+				std::cout << posVertexCount << "\n";
+				std::cout << accessorIdx.count << "\n";
 
 				switch (accessorIdx.componentType) {
 				case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
@@ -254,7 +269,7 @@ static void ClassifyFile(fs::path source, fs::path destination) {
 
 	for (std::string& scene : scenes) {
 		if (!packedFiles.contains(scene)) {
-			packedFiles[scene].open(destination / (scene + ".scene"));
+			packedFiles[scene].open(destination / (scene + ".scene"), std::ios::binary);
 		}
 	}
 

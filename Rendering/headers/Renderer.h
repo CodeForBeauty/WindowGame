@@ -5,6 +5,7 @@
 
 #include "vertex.h"
 #include "MeshTypes.h"
+#include "textures.h"
 
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
@@ -35,6 +36,9 @@ public:
 
 	// Returns index of the texture in a vector
 	size_t LoadTexture(const char* filepath);
+
+	void UploadTexture(const assets::TextureInfo& texture);
+	void UploadTextures(const std::vector<assets::TextureInfo>& textures);
 
 private:
 	std::vector<SolidMesh> mSolidMeshes;

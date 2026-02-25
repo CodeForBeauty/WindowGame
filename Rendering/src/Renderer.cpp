@@ -111,6 +111,10 @@ void Renderer::UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, st
 		mTotalIndexCount += static_cast<uint32_t>(meshesData[i].second.size());
 	}
 
+	if (mTotalVertexCount == 0 || mTotalIndexCount == 0) {
+		return;
+	}
+
 	vk::DeviceSize vertBufSize = vertexSize * mTotalVertexCount;
 
 	vk::raii::Buffer vertStagingBuffer = nullptr;
@@ -193,7 +197,13 @@ size_t Renderer::LoadTexture(const char* filepath) {
 		channels = 4;
 	}
 
-	vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(width) * height * channels;
+	UploadTexture({ width, height, channels, pixels });
+
+	return mAllTextures.size() - 1;
+}
+
+void Renderer::UploadTexture(const assets::TextureInfo& texture) {
+	vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(texture.width) * texture.height * texture.channels;
 
 	vk::raii::Buffer staginBuffer = nullptr;
 	vk::raii::DeviceMemory stagingMemory = nullptr;
@@ -202,15 +212,13 @@ size_t Renderer::LoadTexture(const char* filepath) {
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, staginBuffer, stagingMemory);
 
 	void* data = stagingMemory.mapMemory(0, imageSize);
-	memcpy(data, pixels, imageSize);
+	memcpy(data, texture.pixels, imageSize);
 	stagingMemory.unmapMemory();
 
-	assets::freeTextureData(pixels);
-
 	TextureData texData;
-	texData.width = static_cast<uint32_t>(width);
-	texData.height = static_cast<uint32_t>(height);
-	switch (channels) {
+	texData.width = static_cast<uint32_t>(texture.width);
+	texData.height = static_cast<uint32_t>(texture.height);
+	switch (texture.channels) {
 	case 1:
 		texData.format = vk::Format::eR8Srgb;
 		break;
@@ -256,8 +264,12 @@ size_t Renderer::LoadTexture(const char* filepath) {
 	mPipeline.UpdateSingleTexture(mVkDevice, texData);
 
 	mAllTextures.push_back(std::move(texData));
+}
 
-	return mAllTextures.size() - 1;
+void Renderer::UploadTextures(const std::vector<assets::TextureInfo>& textures) {
+	for (const assets::TextureInfo& info : textures) {
+		UploadTexture(info);
+	}
 }
 
 void Renderer::CreateInstance(const char* name) {
