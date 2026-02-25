@@ -251,9 +251,11 @@ size_t Renderer::LoadTexture(const char* filepath) {
 	};
 	texData.sampler = vk::raii::Sampler(mVkDevice, samplerInfo);
 
-	mAllTextures.push_back(std::move(texData));
+	texData.index = static_cast<uint32_t>(mAllTextures.size());
 
-	mPipeline.UpdateTextures(mVkDevice, mAllTextures);
+	mPipeline.UpdateSingleTexture(mVkDevice, texData);
+
+	mAllTextures.push_back(std::move(texData));
 
 	return mAllTextures.size() - 1;
 }
@@ -321,7 +323,11 @@ void Renderer::CreateDevice() {
 		.synchronization2 = vk::True,
 		.dynamicRendering = vk::True,
 	};
-	features.pNext = &vulkan13Features;
+	vk::PhysicalDeviceVulkan12Features vulkan12Features{
+		.pNext = &vulkan13Features,
+		.runtimeDescriptorArray = vk::True,
+	};
+	features.pNext = &vulkan12Features;
 
 	float queuePriority = 0.5f;
 	vk::DeviceQueueCreateInfo deviceQueueCreateInfo{
@@ -344,6 +350,16 @@ void Renderer::CreateDevice() {
 
 void Renderer::CreateSwapchain() {
 	vk::SurfaceCapabilitiesKHR surfaceCaps = mVkPhysicalDevice.getSurfaceCapabilitiesKHR(mVkSurface);
+
+	auto surfaceFormats = mVkPhysicalDevice.getSurfaceFormatsKHR(*mVkSurface);
+
+	vk::Format selectedFormat = surfaceFormats[0].format;
+	for (auto& format : surfaceFormats) {
+		if (format.format == imageFormat) {
+			selectedFormat = imageFormat;
+			break;
+		}
+	}
 
 	vk::SwapchainCreateInfoKHR swapchainCI{
 		.surface = mVkSurface,
@@ -412,7 +428,7 @@ void Renderer::CreatePipeline() {
 	mVkRenderFinishedSemaphore = vk::raii::Semaphore(mVkDevice, vk::SemaphoreCreateInfo());
 	mVkDrawFence = vk::raii::Fence(mVkDevice, { .flags = vk::FenceCreateFlagBits::eSignaled });
 
-	mPipeline.CreatePipeline(mVkDevice, mVkPhysicalDevice, imageFormat, mVkDepthFormat, mAllTextures);
+	mPipeline.CreatePipeline(mVkDevice, mVkPhysicalDevice, imageFormat, mVkDepthFormat, MAX_TEXTURES);
 }
 
 void Renderer::TransitionImageView(const vk::raii::CommandBuffer& buffer, const vk::Image& image, vk::ImageLayout oldLayout,

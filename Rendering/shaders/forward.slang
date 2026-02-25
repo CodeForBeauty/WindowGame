@@ -1,9 +1,13 @@
-struct MainMeshUB {
-	float4x4 model;
+struct StaticDrawDataUB {
 	float4x4 view;
 	float4x4 proj;
 };
-ConstantBuffer<MainMeshUB> uboMain;
+uniform ConstantBuffer<StaticDrawDataUB> uboMain;
+
+struct PerObjectData {
+    float4x4 model;
+};
+[vk_push_constant] uniform PerObjectData pcObjData;
 
 
 struct VSInput {
@@ -22,14 +26,14 @@ struct VertexOutput {
 [shader("vertex")]
 VertexOutput vertMain(VSInput input) {
     VertexOutput output;
-    output.sv_position = mul(uboMain.proj, mul(uboMain.view, mul(uboMain.model, float4(input.inPosition, 1.0))));
+    output.sv_position = mul(uboMain.proj, mul(uboMain.view, mul(pcObjData.model, float4(input.inPosition, 1.0))));
     output.uv = input.inUV;
-    output.normal = mul(uboMain.view, mul(uboMain.model, float4(input.inNormal, 0.0))).xyz;
-    output.viewPos = mul(uboMain.view, mul(uboMain.model, float4(input.inPosition, 1.0))).xyz;
+    output.normal = mul(uboMain.view, mul(pcObjData.model, float4(input.inNormal, 0.0))).xyz;
+    output.viewPos = mul(uboMain.view, mul(pcObjData.model, float4(input.inPosition, 1.0))).xyz;
     return output;
 }
 
-Sampler2D allTextures[1];
+uniform Sampler2D allTextures[];
 
 [shader("fragment")]
 float4 fragMain(VertexOutput inVert) : SV_Target {
@@ -43,7 +47,7 @@ float4 fragMain(VertexOutput inVert) : SV_Target {
     float specular = pow(specAngle, 16);
 
     // return float4(abs(viewDir), 1);
-    return float4(allTextures[0].Sample(inVert.uv));
+    return float4((lambertian + specular) * allTextures[0].Sample(inVert.uv));
     //return float4(lambertian + specular);
     //return float4(inVert.normal, 1.0);
 }

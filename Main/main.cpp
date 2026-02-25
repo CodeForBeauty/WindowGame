@@ -25,6 +25,7 @@ int main() {
 
 	auto mesh3 = rend->CopySolidMesh(0);
 	mesh3->position.y = 1.5f;
+	mesh3->position.z -= 1.0f;
 
 	rend->LoadTexture("assets/water.jpg");
 

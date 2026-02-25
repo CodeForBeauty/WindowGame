@@ -16,6 +16,8 @@ namespace renderer {
 
 struct TextureData;
 
+constexpr unsigned int MAX_TEXTURES = 64;
+
 class Renderer {
 public:
 	Renderer(Window& window, const char* name);
@@ -96,6 +98,8 @@ private:
 };
 
 struct TextureData {
+	uint32_t index = 0;
+
 	uint32_t width = 0;
 	uint32_t height = 0;
 	vk::Format format = vk::Format::eUndefined;
