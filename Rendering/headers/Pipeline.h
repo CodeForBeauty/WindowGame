@@ -26,8 +26,12 @@ public:
 	void CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat,
 		vk::Format depthFormat, unsigned int maxTextures);
 
-	void ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
+	void DrawSolidMeshes(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
 		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, const std::vector<SolidMesh>& solidMeshes);
+
+	void DrawSkinnedMeshes(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
+		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, vk::raii::Buffer& skinningBuffer,
+		const std::vector<SkinnedMesh>& skinnedMeshes);
 
 	void UpdateTextures(const vk::raii::Device& device, const std::vector<TextureData>& textures);
 	void UpdateSingleTexture(const vk::raii::Device& device, const TextureData& texture);
@@ -49,10 +53,20 @@ private:
 	vk::raii::DescriptorSet       mVkMainDescriptorSet             = nullptr;
 
 	vk::raii::DescriptorSetLayout mVkDescriptorSetLayout           = nullptr;
-	vk::raii::PipelineLayout      mVkPipelineLayout                = nullptr;
-	vk::raii::Pipeline            mVkGraphicsPipeline              = nullptr;
+
+	vk::raii::PipelineLayout      mVkSolidPipelineLayout           = nullptr;
+	vk::raii::Pipeline            mVkSolidPipeline                 = nullptr;
+
+	vk::raii::PipelineLayout      mVkSkinnedPipelineLayout         = nullptr;
+	vk::raii::Pipeline            mVkSkinnedPipeline               = nullptr;
 
 	std::vector<char> ReadFile(const char* filepath);
+
+	void NewVkPipeline(const vk::raii::Device& device, const char* shaderFile,
+		std::vector<std::pair<const char*, vk::ShaderStageFlagBits>> shaderStagesFuncs,
+		std::vector<vk::VertexInputBindingDescription> bindingDesc, std::vector<vk::VertexInputAttributeDescription> attribDescs,
+		vk::PushConstantRange pushConstantRange, vk::Format outputFormat, vk::Format depthFormat,
+		vk::raii::DescriptorSetLayout& descriptorSet, vk::raii::PipelineLayout& outPipelineLayout, vk::raii::Pipeline& outPipeline);
 };
 
 struct StaticDrawDataUB {

@@ -22,8 +22,7 @@ struct SolidMeshData {
 };
 
 struct SkinnedMeshData : SolidMeshData {
-	std::vector<lm2::vec4> boneWeights;
-	std::vector<lm2::vector4D<uint16_t>> boneIndices;
+	std::vector<renderer::vertexSkinning> skinning;
 	std::vector<lm2::mat4> invBindPose;
 	std::vector<lm2::mat4> bindPose;
 };

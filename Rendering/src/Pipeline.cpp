@@ -13,9 +13,13 @@
 using namespace renderer;
 
 
-constexpr const char* mainShader = "shaders/forward.spv";
-constexpr const char* vertMainShaderFunc = "vertMain";
-constexpr const char* fragMainShaderFunc = "fragMain";
+constexpr const char* mainSolidShader = "shaders/forwardSolid.spv";
+constexpr const char* vertSolidMainShaderFunc = "vertMain";
+constexpr const char* fragSolidMainShaderFunc = "fragMain";
+
+constexpr const char* mainSkinnedShader = "shaders/forwardSkinned.spv";
+constexpr const char* vertSkinnedMainShaderFunc = "vertMain";
+constexpr const char* fragSkinnedMainShaderFunc = "fragMain";
 
 Pipeline::Pipeline(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, vk::Format outputFormat,
 		vk::Format depthFormat, unsigned int maxTextures) {
@@ -26,7 +30,8 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		vk::Format depthFormat, unsigned int maxTextures) {
 	CreateUniformBuffers(device, physicalDevice, maxTextures);
 
-	std::vector<char> shaderCode = ReadFile(mainShader);
+	// Solid meshes pipeline
+	std::vector<char> shaderCode = ReadFile(mainSolidShader);
 
 	vk::ShaderModuleCreateInfo shaderModuleCI{
 		.codeSize = shaderCode.size() * sizeof(char),
@@ -37,30 +42,25 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{
 		.stage = vk::ShaderStageFlagBits::eVertex,
 		.module = shaderModule,
-		.pName = vertMainShaderFunc
+		.pName = vertSolidMainShaderFunc
 	};
 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{
 		.stage = vk::ShaderStageFlagBits::eFragment,
 		.module = shaderModule,
-		.pName = fragMainShaderFunc
+		.pName = fragSolidMainShaderFunc
 	};
 
-	vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-	std::vector dynamicStates = {
-		vk::DynamicState::eViewport,
-		vk::DynamicState::eScissor
+	std::vector< std::pair<const char*, vk::ShaderStageFlagBits> > shaderStageFuncs{
+		{ vertSolidMainShaderFunc, vk::ShaderStageFlagBits::eVertex },
+		{ fragSolidMainShaderFunc, vk::ShaderStageFlagBits::eFragment },
 	};
 
-	vk::PipelineDynamicStateCreateInfo dynamicState{
-		.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
-		.pDynamicStates = dynamicStates.data()
-	};
-
-	vk::VertexInputBindingDescription bindingDescription{
-		.binding = 0,
-		.stride = sizeof(vertex),
-		.inputRate = vk::VertexInputRate::eVertex
+	std::vector<vk::VertexInputBindingDescription> bindingDescriptions{
+		vk::VertexInputBindingDescription {
+			.binding = 0,
+			.stride = sizeof(vertex),
+			.inputRate = vk::VertexInputRate::eVertex
+		}
 	};
 	std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{
 		vk::VertexInputAttributeDescription{
@@ -83,99 +83,50 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		},
 	};
 
-	vk::PipelineVertexInputStateCreateInfo vertexInputInfo{
-		.vertexBindingDescriptionCount = 1,
-		.pVertexBindingDescriptions = &bindingDescription,
-		.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
-		.pVertexAttributeDescriptions = attributeDescriptions.data()
-	};
-
-	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
-
-	vk::PipelineViewportStateCreateInfo viewportState{ .viewportCount = 1, .scissorCount = 1 };
-
-
-	vk::PipelineRasterizationStateCreateInfo rasterizer{
-		.depthClampEnable = vk::False,
-		.rasterizerDiscardEnable = vk::False,
-		.polygonMode = vk::PolygonMode::eFill,
-		.cullMode = vk::CullModeFlagBits::eBack,
-		.frontFace = vk::FrontFace::eCounterClockwise,
-		.depthBiasEnable = vk::False,
-		.depthBiasSlopeFactor = 1.0f,
-		.lineWidth = 1.0f
-	};
-
-	vk::PipelineColorBlendAttachmentState colorBlendAttachment{
-		.blendEnable = vk::False,
-		.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
-	};
-
-	vk::PipelineMultisampleStateCreateInfo multisampling{
-		.rasterizationSamples = vk::SampleCountFlagBits::e1,
-		.sampleShadingEnable = vk::False
-	};
-
-	vk::PipelineColorBlendStateCreateInfo colorBlending{
-		.logicOpEnable = vk::False,
-		.logicOp = vk::LogicOp::eCopy,
-		.attachmentCount = 1,
-		.pAttachments = &colorBlendAttachment
-	};
-
-	// TODO: Add stencil tests
-	vk::PipelineDepthStencilStateCreateInfo depthStencil{
-		.depthTestEnable = vk::True,
-		.depthWriteEnable = vk::True,
-		.depthCompareOp = vk::CompareOp::eLess,
-		.depthBoundsTestEnable = vk::False,
-		.stencilTestEnable = vk::False
-	};
-
 	vk::PushConstantRange staticPushConstantRange{
 		.stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
 		.offset = 0,
 		.size = sizeof(StaticDrawDataUB),
 	};
 
-	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
-		.setLayoutCount = 1,
-		.pSetLayouts = &*mVkDescriptorSetLayout,
-		.pushConstantRangeCount = 1,
-		.pPushConstantRanges = &staticPushConstantRange
-	};
+	NewVkPipeline(device, mainSolidShader, shaderStageFuncs, bindingDescriptions, attributeDescriptions, staticPushConstantRange,
+		outputFormat, depthFormat, mVkDescriptorSetLayout, mVkSolidPipelineLayout, mVkSolidPipeline);
 
-	mVkPipelineLayout = vk::raii::PipelineLayout{ device, pipelineLayoutInfo };
+	// Skinned meshes pipeline
+	bindingDescriptions.push_back(
+		vk::VertexInputBindingDescription{
+			.binding = 1,
+			.stride = sizeof(vertexSkinning),
+			.inputRate = vk::VertexInputRate::eVertex
+		}
+	);
 
-	vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{
-		.colorAttachmentCount = 1,
-		.pColorAttachmentFormats = &outputFormat,
-		.depthAttachmentFormat = depthFormat,
-	};
-	vk::GraphicsPipelineCreateInfo pipelineInfo{
-		.pNext = &pipelineRenderingCreateInfo,
-		.stageCount = 2,
-		.pStages = shaderStages,
-		.pVertexInputState = &vertexInputInfo,
-		.pInputAssemblyState = &inputAssembly,
-		.pViewportState = &viewportState,
-		.pRasterizationState = &rasterizer,
-		.pMultisampleState = &multisampling,
-		.pDepthStencilState = &depthStencil,
-		.pColorBlendState = &colorBlending,
-		.pDynamicState = &dynamicState,
-		.layout = mVkPipelineLayout,
-		.renderPass = nullptr,
-	};
+	attributeDescriptions.push_back(
+		vk::VertexInputAttributeDescription{
+			.location = 3,
+			.binding = 1,
+			.format = vk::Format::eR32G32B32A32Sint,
+			.offset = offsetof(vertexSkinning, indices)
+		}
+	);
+	attributeDescriptions.push_back(
+		vk::VertexInputAttributeDescription{
+			.location = 4,
+			.binding = 1,
+			.format = vk::Format::eR32G32B32A32Sfloat,
+			.offset = offsetof(vertexSkinning, weights)
+		}
+	);
 
-	mVkGraphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+	NewVkPipeline(device, mainSkinnedShader, shaderStageFuncs, bindingDescriptions, attributeDescriptions, staticPushConstantRange,
+		outputFormat, depthFormat, mVkDescriptorSetLayout, mVkSkinnedPipelineLayout, mVkSkinnedPipeline);
 
 #ifndef NDEBUG
 	mPipelineCreated = true;
 #endif
 }
 
-void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
+void Pipeline::DrawSolidMeshes(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
 	int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, const std::vector<SolidMesh>& solidMeshes) {
 
 	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
@@ -215,7 +166,7 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 
 	commandBuffer.beginRendering(renderingInfo);
 
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mVkGraphicsPipeline);
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mVkSolidPipeline);
 
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(viewWidth),
 		static_cast<float>(viewHeight), 0.0f, 1.0f));
@@ -227,15 +178,82 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	uint32_t uniformOffset = 0;
 
 	PerObjectData pod{};
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkSolidPipelineLayout, 0, *mVkMainDescriptorSet, nullptr);
 	
 	for (size_t i = 0; i < solidMeshes.size(); ++i) {
 		pod.model = lm2::position3D(solidMeshes[i].data.position) * lm2::mat4(lm2::rotation3D(solidMeshes[i].data.rotation));
-		commandBuffer.pushConstants<PerObjectData>(mVkPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, pod);
+		commandBuffer.pushConstants<PerObjectData>(mVkSolidPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, pod);
 
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkPipelineLayout, 0, *mVkMainDescriptorSet, uniformOffset * mStaticDrawDataSize);
 		uniformOffset++;
 
 		commandBuffer.drawIndexed(solidMeshes[i].indexCount, 1, solidMeshes[i].indexOffset, solidMeshes[i].vertexOffset, 0);
+	}
+
+	commandBuffer.endRendering();
+}
+
+void Pipeline::DrawSkinnedMeshes(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
+		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, vk::raii::Buffer& skinningBuffer,
+		const std::vector<SkinnedMesh>& skinnedMeshes) {
+	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
+
+	vk::RenderingAttachmentInfo colorAttachmentInfo = {
+		.imageView = swapImageView,
+		.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+		.loadOp = vk::AttachmentLoadOp::eLoad,
+		.storeOp = vk::AttachmentStoreOp::eStore,
+		.clearValue = clearColor
+	};
+	vk::RenderingAttachmentInfo depthAttachmentInfo = {
+		.imageView = depthImageView,
+		.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+		.loadOp = vk::AttachmentLoadOp::eLoad,
+		.storeOp = vk::AttachmentStoreOp::eDontCare,
+		.clearValue = clearDepth
+	};
+
+	vk::RenderingInfo renderingInfo = {
+		.renderArea = {
+			.offset = { 0, 0 },
+			.extent = {.width = static_cast<uint32_t>(viewWidth), .height = static_cast<uint32_t>(viewHeight) }
+		},
+		.layerCount = 1,
+		.colorAttachmentCount = 1,
+		.pColorAttachments = &colorAttachmentInfo,
+		.pDepthAttachment = &depthAttachmentInfo,
+	};
+
+	StaticDrawDataUB staticUbo{
+		lm2::position3D<float>({ 0.5f, 0, -5.0f }),
+		lm2::perspective<float>(45.0f, 0.5f, 100.0f, static_cast<float>(viewHeight) / viewWidth),
+	};
+	memcpy(mVkStaticDrawDataBufferMapped, &staticUbo, sizeof(staticUbo));
+
+	commandBuffer.beginRendering(renderingInfo);
+
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mVkSolidPipeline);
+
+	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(viewWidth),
+		static_cast<float>(viewHeight), 0.0f, 1.0f));
+	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), { .width = static_cast<uint32_t>(viewWidth), .height = static_cast<uint32_t>(viewHeight) }));
+
+	commandBuffer.bindVertexBuffers(0, *vertexBuffer, { 0 });
+	commandBuffer.bindVertexBuffers(1, *skinningBuffer, { 0 });
+	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint32);
+
+	uint32_t uniformOffset = 0;
+
+	PerObjectData pod{};
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkSolidPipelineLayout, 0, *mVkMainDescriptorSet, nullptr);
+
+	for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+		pod.model = lm2::position3D(skinnedMeshes[i].data.position) * lm2::mat4(lm2::rotation3D(skinnedMeshes[i].data.rotation));
+		commandBuffer.pushConstants<PerObjectData>(mVkSolidPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, pod);
+
+		uniformOffset++;
+
+		commandBuffer.drawIndexed(skinnedMeshes[i].indexCount, 1, skinnedMeshes[i].indexOffset, skinnedMeshes[i].vertexOffset, 0);
 	}
 
 	commandBuffer.endRendering();
@@ -358,4 +376,121 @@ std::vector<char> Pipeline::ReadFile(const char* filepath) {
 
 	file.close();
 	return output;
+}
+
+void Pipeline::NewVkPipeline(const vk::raii::Device& device, const char* shaderFile,
+		std::vector<std::pair<const char*, vk::ShaderStageFlagBits>> shaderStagesFuncs,
+		std::vector<vk::VertexInputBindingDescription> bindingDescs, std::vector<vk::VertexInputAttributeDescription> attribDescs,
+		vk::PushConstantRange pushConstantRange, vk::Format outputFormat, vk::Format depthFormat,
+		vk::raii::DescriptorSetLayout& descriptorSet, vk::raii::PipelineLayout& outPipelineLayout, vk::raii::Pipeline& outPipeline) {
+	std::vector<char> shaderCode = ReadFile(shaderFile);
+
+	vk::ShaderModuleCreateInfo shaderModuleCI{
+		.codeSize = shaderCode.size() * sizeof(char),
+		.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data())
+	};
+	vk::raii::ShaderModule shaderModule{ device, shaderModuleCI };
+
+	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+
+	for (const auto& shaderStage : shaderStagesFuncs) {
+		shaderStages.push_back(
+			vk::PipelineShaderStageCreateInfo{
+				.stage = shaderStage.second,
+				.module = shaderModule,
+				.pName = shaderStage.first
+			});
+	}
+
+	std::vector dynamicStates = {
+		vk::DynamicState::eViewport,
+		vk::DynamicState::eScissor
+	};
+
+	vk::PipelineDynamicStateCreateInfo dynamicState{
+		.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+		.pDynamicStates = dynamicStates.data()
+	};
+
+	vk::PipelineVertexInputStateCreateInfo vertexInputInfo{
+		.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescs.size()),
+		.pVertexBindingDescriptions = bindingDescs.data(),
+		.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDescs.size()),
+		.pVertexAttributeDescriptions = attribDescs.data()
+	};
+
+	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
+
+	vk::PipelineViewportStateCreateInfo viewportState{ .viewportCount = 1, .scissorCount = 1 };
+
+
+	vk::PipelineRasterizationStateCreateInfo rasterizer{
+		.depthClampEnable = vk::False,
+		.rasterizerDiscardEnable = vk::False,
+		.polygonMode = vk::PolygonMode::eFill,
+		.cullMode = vk::CullModeFlagBits::eBack,
+		.frontFace = vk::FrontFace::eCounterClockwise,
+		.depthBiasEnable = vk::False,
+		.depthBiasSlopeFactor = 1.0f,
+		.lineWidth = 1.0f
+	};
+
+	vk::PipelineColorBlendAttachmentState colorBlendAttachment{
+		.blendEnable = vk::False,
+		.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+	};
+
+	vk::PipelineMultisampleStateCreateInfo multisampling{
+		.rasterizationSamples = vk::SampleCountFlagBits::e1,
+		.sampleShadingEnable = vk::False
+	};
+
+	vk::PipelineColorBlendStateCreateInfo colorBlending{
+		.logicOpEnable = vk::False,
+		.logicOp = vk::LogicOp::eCopy,
+		.attachmentCount = 1,
+		.pAttachments = &colorBlendAttachment
+	};
+
+	// TODO: Add stencil tests
+	vk::PipelineDepthStencilStateCreateInfo depthStencil{
+		.depthTestEnable = vk::True,
+		.depthWriteEnable = vk::True,
+		.depthCompareOp = vk::CompareOp::eLess,
+		.depthBoundsTestEnable = vk::False,
+		.stencilTestEnable = vk::False
+	};
+
+
+	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
+		.setLayoutCount = 1,
+		.pSetLayouts = &*descriptorSet,
+		.pushConstantRangeCount = 1,
+		.pPushConstantRanges = &pushConstantRange
+	};
+
+	outPipelineLayout = vk::raii::PipelineLayout{ device, pipelineLayoutInfo };
+
+	vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{
+		.colorAttachmentCount = 1,
+		.pColorAttachmentFormats = &outputFormat,
+		.depthAttachmentFormat = depthFormat,
+	};
+	vk::GraphicsPipelineCreateInfo pipelineInfo{
+		.pNext = &pipelineRenderingCreateInfo,
+		.stageCount = static_cast<uint32_t>(shaderStages.size()),
+		.pStages = shaderStages.data(),
+		.pVertexInputState = &vertexInputInfo,
+		.pInputAssemblyState = &inputAssembly,
+		.pViewportState = &viewportState,
+		.pRasterizationState = &rasterizer,
+		.pMultisampleState = &multisampling,
+		.pDepthStencilState = &depthStencil,
+		.pColorBlendState = &colorBlending,
+		.pDynamicState = &dynamicState,
+		.layout = outPipelineLayout,
+		.renderPass = nullptr,
+	};
+
+	outPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
 }

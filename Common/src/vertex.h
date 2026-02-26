@@ -11,4 +11,9 @@ namespace renderer {
 		lm2::vec2 uv;
 	};
 
+	struct vertexSkinning {
+		lm2::vector4D<uint16_t> indices;
+		lm2::vec4 weights;
+	};
+
 } // namespace renderer

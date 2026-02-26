@@ -16,11 +16,13 @@ assets::SceneData::~SceneData() {
 
 assets::SceneData::SceneData(SceneData&& rhs) noexcept {
 	std::swap(solidMeshes, rhs.solidMeshes);
+	std::swap(skinnedMeshes, rhs.skinnedMeshes);
 	std::swap(texData, rhs.texData);
 }
 
 SceneData& assets::SceneData::operator=(SceneData&& rhs) noexcept {
 	std::swap(solidMeshes, rhs.solidMeshes);
+	std::swap(skinnedMeshes, rhs.skinnedMeshes);
 	std::swap(texData, rhs.texData);
 	return *this;
 }

@@ -23,4 +23,9 @@ struct SolidMesh {
 	MeshData data;
 };
 
+struct SkinnedMesh : SolidMesh {
+	uint32_t boneIndexOffset;
+	uint32_t boneIndexCount;
+};
+
 } // namespace renderer

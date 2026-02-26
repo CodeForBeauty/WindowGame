@@ -47,9 +47,36 @@ void Renderer::Render(int width, int height) {
 		vk::ImageAspectFlagBits::eDepth);
 
 
-	mPipeline.ApplyBasePass(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], mVkDepthImageView, width, height,
+	mPipeline.DrawSolidMeshes(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], mVkDepthImageView, width, height,
 		mVkVertexBuffer, mVkIndexBuffer, mSolidMeshes);
 
+
+	mVkCommandBuffer.end();
+
+	{
+		auto [result, imageIndex] = mVkSwapchain.acquireNextImage(UINT64_MAX, mVkPresentCompleteSemaphore, nullptr);
+		mCurrentSwapImage = imageIndex;
+
+		vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+		const vk::SubmitInfo submitInfo{
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &*mVkPresentCompleteSemaphore,
+			.pWaitDstStageMask = &waitDestinationStageMask,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &*mVkCommandBuffer,
+		};
+
+		mVkGraphicsQueue.submit(submitInfo, *mVkDrawFence);
+
+		auto fenceResult = mVkDevice.waitForFences(*mVkDrawFence, vk::True, UINT64_MAX);
+		mVkDevice.resetFences(*mVkDrawFence);
+	}
+
+
+	mVkCommandBuffer.begin({});
+
+	mPipeline.DrawSkinnedMeshes(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], mVkDepthImageView, width, height,
+		mVkVertexBuffer, mVkIndexBuffer, mVkSkinningBuffer, mSkinnedMeshes);
 
 	TransitionImageView(mVkCommandBuffer, mVkSwapImages[mCurrentSwapImage],
 		vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
@@ -59,56 +86,78 @@ void Renderer::Render(int width, int height) {
 
 	mVkCommandBuffer.end();
 
-	auto [result, imageIndex] = mVkSwapchain.acquireNextImage(UINT64_MAX, mVkPresentCompleteSemaphore, nullptr);
+	{
+		vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+		const vk::SubmitInfo submitInfo{
+			.pWaitDstStageMask = &waitDestinationStageMask,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &*mVkCommandBuffer,
+			.signalSemaphoreCount = 1,
+			.pSignalSemaphores = &*mVkRenderFinishedSemaphore };
 
-	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-	const vk::SubmitInfo submitInfo{
-		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &*mVkPresentCompleteSemaphore,
-		.pWaitDstStageMask = &waitDestinationStageMask,
-		.commandBufferCount = 1,
-		.pCommandBuffers = &*mVkCommandBuffer,
-		.signalSemaphoreCount = 1,
-		.pSignalSemaphores = &*mVkRenderFinishedSemaphore };
+		mVkGraphicsQueue.submit(submitInfo, *mVkDrawFence);
 
-	mVkGraphicsQueue.submit(submitInfo, *mVkDrawFence);
+		const vk::PresentInfoKHR presentInfoKHR{
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &*mVkRenderFinishedSemaphore,
+			.swapchainCount = 1,
+			.pSwapchains = &*mVkSwapchain,
+			.pImageIndices = &mCurrentSwapImage
+		};
 
-	const vk::PresentInfoKHR presentInfoKHR{
-		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &*mVkRenderFinishedSemaphore,
-		.swapchainCount = 1,
-		.pSwapchains = &*mVkSwapchain,
-		.pImageIndices = &imageIndex
-	};
-
-	result = mVkPresentQueue.presentKHR(presentInfoKHR);
+		auto result = mVkPresentQueue.presentKHR(presentInfoKHR);
+	}
 }
 
-void Renderer::UpdateSolidMeshes(std::vector<assets::SolidMeshData>& meshesData) {
+void Renderer::UpdateMeshes(std::vector<assets::SolidMeshData>& solidMeshes, std::vector<assets::SkinnedMeshData>& skinnedMeshes) {
 	mVkVertexBufferMemory = nullptr;
 	mVkVertexBuffer = nullptr;
 
 	mVkIndexBufferMemory = nullptr;
 	mVkIndexBuffer = nullptr;
 
+	mVkSkinningBufferMemory = nullptr;
+	mVkSkinningBuffer = nullptr;
+
 	mTotalVertexCount = 0;
 	mTotalIndexCount = 0;
 
 	size_t vertexSize = sizeof(vertex);
 	size_t indexSize = sizeof(uint32_t);
+	size_t skinningSize = sizeof(vertexSkinning);
 
 	mSolidMeshes.clear();
 
-	for (size_t i = 0; i < meshesData.size(); ++i) {
+	for (size_t i = 0; i < solidMeshes.size(); ++i) {
 		mSolidMeshes.emplace_back(
 			mTotalVertexCount,
-			static_cast<uint32_t>(meshesData[i].vertices.size()),
+			static_cast<uint32_t>(solidMeshes[i].vertices.size()),
 			mTotalIndexCount,
-			static_cast<uint32_t>(meshesData[i].indices.size())
+			static_cast<uint32_t>(solidMeshes[i].indices.size())
 		);
 
-		mTotalVertexCount += static_cast<uint32_t>(meshesData[i].vertices.size());
-		mTotalIndexCount += static_cast<uint32_t>(meshesData[i].indices.size());
+		mTotalVertexCount += static_cast<uint32_t>(solidMeshes[i].vertices.size());
+		mTotalIndexCount += static_cast<uint32_t>(solidMeshes[i].indices.size());
+	}
+
+	for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+		mSkinnedMeshes.emplace_back(
+			SkinnedMesh{
+				mTotalVertexCount,
+				static_cast<uint32_t>(skinnedMeshes[i].vertices.size()),
+				mTotalIndexCount,
+				static_cast<uint32_t>(skinnedMeshes[i].indices.size()),
+
+				MeshData{},
+
+				mTotalSkinningCount,
+				static_cast<uint32_t>(skinnedMeshes[i].skinning.size())
+			}
+		);
+
+		mTotalVertexCount += static_cast<uint32_t>(skinnedMeshes[i].vertices.size());
+		mTotalIndexCount += static_cast<uint32_t>(skinnedMeshes[i].indices.size());
+		mTotalSkinningCount += static_cast<uint32_t>(skinnedMeshes[i].skinning.size());
 	}
 
 	if (mTotalVertexCount == 0 || mTotalIndexCount == 0) {
@@ -125,12 +174,17 @@ void Renderer::UpdateSolidMeshes(std::vector<assets::SolidMeshData>& meshesData)
 
 	createBuffer(mVkDevice, mVkPhysicalDevice, vertBufSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
 		vk::MemoryPropertyFlagBits::eDeviceLocal, mVkVertexBuffer, mVkVertexBufferMemory);
-	
+
 	{
 		char* data = reinterpret_cast<char*>(vertStagingMemory.mapMemory(0, vertBufSize));
-		for (size_t i = 0; i < meshesData.size(); ++i) {
-			size_t size = meshesData[i].vertices.size() * vertexSize;
-			memcpy(data, meshesData[i].vertices.data(), size);
+		for (size_t i = 0; i < solidMeshes.size(); ++i) {
+			size_t size = solidMeshes[i].vertices.size() * vertexSize;
+			memcpy(data, solidMeshes[i].vertices.data(), size);
+			data = data + size;
+		}
+		for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+			size_t size = skinnedMeshes[i].vertices.size() * vertexSize;
+			memcpy(data, skinnedMeshes[i].vertices.data(), size);
 			data = data + size;
 		}
 		vertStagingMemory.unmapMemory();
@@ -152,15 +206,48 @@ void Renderer::UpdateSolidMeshes(std::vector<assets::SolidMeshData>& meshesData)
 
 	{
 		char* data = reinterpret_cast<char*>(indStagingMemory.mapMemory(0, indexBufSize));
-		for (size_t i = 0; i < meshesData.size(); ++i) {
-			size_t size = meshesData[i].indices.size() * indexSize;
-			memcpy(data, meshesData[i].indices.data(), size);
+		for (size_t i = 0; i < solidMeshes.size(); ++i) {
+			size_t size = solidMeshes[i].indices.size() * indexSize;
+			memcpy(data, solidMeshes[i].indices.data(), size);
+			data = data + size;
+		}
+		for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+			size_t size = skinnedMeshes[i].indices.size() * indexSize;
+			memcpy(data, skinnedMeshes[i].indices.data(), size);
 			data = data + size;
 		}
 		indStagingMemory.unmapMemory();
 	}
 
 	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, indStagingBuffer, mVkIndexBuffer, indexBufSize);
+
+	// Skinning buffer
+	if (mTotalSkinningCount <= 0) {
+		return;
+	}
+
+	vk::DeviceSize skinBufSize = skinningSize * mTotalSkinningCount;
+
+	vk::raii::Buffer skinStagingBuffer = nullptr;
+	vk::raii::DeviceMemory skinStagingMemory = nullptr;
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, skinBufSize, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, skinStagingBuffer, skinStagingMemory);
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, skinBufSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, mVkSkinningBuffer, mVkSkinningBufferMemory);
+
+	{
+		char* data = reinterpret_cast<char*>(skinStagingMemory.mapMemory(0, skinBufSize));
+		for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+			size_t size = skinnedMeshes[i].skinning.size() * skinningSize;
+			memcpy(data, skinnedMeshes[i].skinning.data(), size);
+			data = data + size;
+		}
+		skinStagingMemory.unmapMemory();
+	}
+
+	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, skinStagingBuffer, mVkSkinningBuffer, skinBufSize);
 }
 
 void Renderer::Cleanup() {
@@ -427,10 +514,11 @@ void Renderer::CreateCommandPool() {
 }
 
 void Renderer::LoadRenderData() {
-	std::vector<assets::SolidMeshData> data{
+	std::vector<assets::SolidMeshData> solid{
 		{ { {} }, {0} }
 	};
-	UpdateSolidMeshes(data);
+	std::vector<assets::SkinnedMeshData> skinned{};
+	UpdateMeshes(solid, skinned);
 }
 
 void Renderer::CreatePipeline() {

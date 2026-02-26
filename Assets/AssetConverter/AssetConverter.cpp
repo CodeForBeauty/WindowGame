@@ -263,69 +263,55 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 
 			assert(weightAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
-			lm2::vector4D<uint16_t> tmp{};
-			stream << (sizeof(tmp) * jointVertexCount) << "\n";
+			renderer::vertexSkinning tmpSkinning{};
+			stream << (sizeof(tmpSkinning) * jointVertexCount) << "\n";
 
-			switch (jointAccessor.componentType) {
-			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-			{
-				const uint8_t* buf = reinterpret_cast<const uint8_t*>(jointDataTmp);
-				for (size_t i = 0; i < jointVertexCount; ++i) {
-					tmp = {
-						static_cast<uint16_t>(buf[i * 4 + 0]),
-						static_cast<uint16_t>(buf[i * 4 + 1]),
-						static_cast<uint16_t>(buf[i * 4 + 2]),
-						static_cast<uint16_t>(buf[i * 4 + 3]),
-					};
-					stream.write(reinterpret_cast<const char*>(&tmp), sizeof(tmp));
-				}
-				break;
-			}
-			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-			{
-				const uint16_t* buf = reinterpret_cast<const uint16_t*>(jointDataTmp);
-				for (size_t i = 0; i < jointVertexCount; ++i) {
-					tmp = {
-						static_cast<uint16_t>(buf[i * 4 + 0]),
-						static_cast<uint16_t>(buf[i * 4 + 1]),
-						static_cast<uint16_t>(buf[i * 4 + 2]),
-						static_cast<uint16_t>(buf[i * 4 + 3]),
-					};
-					stream.write(reinterpret_cast<const char*>(&tmp), sizeof(tmp));
-				}
-				break;
-			}
-			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-			{
-				const uint32_t* buf = reinterpret_cast<const uint32_t*>(jointDataTmp);
-				for (size_t i = 0; i < jointVertexCount; ++i) {
-					tmp = {
-						static_cast<uint16_t>(buf[i * 4 + 0]),
-						static_cast<uint16_t>(buf[i * 4 + 1]),
-						static_cast<uint16_t>(buf[i * 4 + 2]),
-						static_cast<uint16_t>(buf[i * 4 + 3]),
-					};
-					stream.write(reinterpret_cast<const char*>(&tmp), sizeof(tmp));
-				}
-				break;
-			}
-			default:
-				throw std::exception("Unsupported joint type");
-			}
 
-			stream << "\n";
-
-			lm2::vec4 weightsTmp{};
-
-			stream << sizeof(weightsTmp) * weightVertexCount << "\n";
-
-			for (int i = 0; i < weightVertexCount; ++i) {
+			for (int i = 0; i < jointVertexCount; ++i) {
 				const float* w = reinterpret_cast<const float*>(
 					reinterpret_cast<const unsigned char*>(weightDataTmp) + weightStride * i);
 
-				memcpy(&weightsTmp, w, sizeof(weightsTmp));
+				memcpy(&tmpSkinning.weights, w, sizeof(tmpSkinning.weights));
 
-				stream.write(reinterpret_cast<char*>(&weightsTmp), sizeof(weightsTmp));
+				switch (jointAccessor.componentType) {
+				case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+				{
+					const uint8_t* buf = reinterpret_cast<const uint8_t*>(jointDataTmp);
+					tmpSkinning.indices = {
+						static_cast<uint16_t>(buf[i * 4 + 0]),
+						static_cast<uint16_t>(buf[i * 4 + 1]),
+						static_cast<uint16_t>(buf[i * 4 + 2]),
+						static_cast<uint16_t>(buf[i * 4 + 3]),
+					};
+					break;
+				}
+				case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+				{
+					const uint16_t* buf = reinterpret_cast<const uint16_t*>(jointDataTmp);
+					tmpSkinning.indices = {
+						static_cast<uint16_t>(buf[i * 4 + 0]),
+						static_cast<uint16_t>(buf[i * 4 + 1]),
+						static_cast<uint16_t>(buf[i * 4 + 2]),
+						static_cast<uint16_t>(buf[i * 4 + 3]),
+					};
+					break;
+				}
+				case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+				{
+					const uint32_t* buf = reinterpret_cast<const uint32_t*>(jointDataTmp);
+					tmpSkinning.indices = {
+						static_cast<uint16_t>(buf[i * 4 + 0]),
+						static_cast<uint16_t>(buf[i * 4 + 1]),
+						static_cast<uint16_t>(buf[i * 4 + 2]),
+						static_cast<uint16_t>(buf[i * 4 + 3]),
+					};
+					break;
+				}
+				default:
+					throw std::exception("Unsupported joint type");
+				}
+
+				stream.write(reinterpret_cast<char*>(&tmpSkinning), sizeof(tmpSkinning));
 			}
 
 			stream << "\n";

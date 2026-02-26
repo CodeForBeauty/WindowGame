@@ -27,7 +27,7 @@ public:
 	void Render(int width, int height);
 
 	// data - vector of vertices and indices paired per mesh
-	void UpdateSolidMeshes(std::vector<assets::SolidMeshData>& data);
+	void UpdateMeshes(std::vector<assets::SolidMeshData>& solidMeshes, std::vector<assets::SkinnedMeshData>& skinnedMeshes);
 
 	void Cleanup();
 
@@ -43,6 +43,7 @@ public:
 
 private:
 	std::vector<SolidMesh> mSolidMeshes;
+	std::vector<SkinnedMesh> mSkinnedMeshes;
 
 	Window* mWindow;
 
@@ -72,6 +73,8 @@ private:
 	vk::raii::DeviceMemory           mVkVertexBufferMemory       = nullptr;
 	vk::raii::Buffer                 mVkIndexBuffer              = nullptr;
 	vk::raii::DeviceMemory           mVkIndexBufferMemory        = nullptr;
+	vk::raii::Buffer                 mVkSkinningBuffer           = nullptr;
+	vk::raii::DeviceMemory           mVkSkinningBufferMemory     = nullptr;
 
 	vk::Format                       mVkDepthFormat              = vk::Format::eUndefined;
 	vk::raii::Image                  mVkDepthImage               = nullptr;
@@ -83,9 +86,11 @@ private:
 
 	Pipeline mPipeline = nullptr;
 
-	int mCurrentSwapImage = 0;
+	uint32_t mCurrentSwapImage = 0;
 	uint32_t mTotalVertexCount = 0;
 	uint32_t mTotalIndexCount = 0;
+
+	uint32_t mTotalSkinningCount = 0;
 
 	std::vector<TextureData> mAllTextures;
 
