@@ -6,6 +6,7 @@
 #include "vertex.h"
 #include "MeshTypes.h"
 #include "textures.h"
+#include "models.h"
 
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
@@ -26,7 +27,7 @@ public:
 	void Render(int width, int height);
 
 	// data - vector of vertices and indices paired per mesh
-	void UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, std::vector<uint16_t> > >& data);
+	void UpdateSolidMeshes(std::vector<assets::SolidMeshData>& data);
 
 	void Cleanup();
 

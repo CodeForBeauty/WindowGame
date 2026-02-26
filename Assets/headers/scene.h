@@ -8,12 +8,13 @@
 #include "vertex.h"
 
 #include "textures.h"
+#include "models.h"
 
 
 namespace assets {
 
 struct SceneData {
-	std::vector< std::pair< std::vector<renderer::vertex>, std::vector<uint16_t> > > vertexData;
+	std::vector<SolidMeshData> solidMeshes;
 	std::vector<TextureInfo> texData;
 
 	SceneData() {};

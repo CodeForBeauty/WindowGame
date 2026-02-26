@@ -84,7 +84,7 @@ void Renderer::Render(int width, int height) {
 	result = mVkPresentQueue.presentKHR(presentInfoKHR);
 }
 
-void Renderer::UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, std::vector<uint16_t> > >& meshesData) {
+void Renderer::UpdateSolidMeshes(std::vector<assets::SolidMeshData>& meshesData) {
 	mVkVertexBufferMemory = nullptr;
 	mVkVertexBuffer = nullptr;
 
@@ -95,20 +95,20 @@ void Renderer::UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, st
 	mTotalIndexCount = 0;
 
 	size_t vertexSize = sizeof(vertex);
-	size_t indexSize = sizeof(uint16_t);
+	size_t indexSize = sizeof(uint32_t);
 
 	mSolidMeshes.clear();
 
 	for (size_t i = 0; i < meshesData.size(); ++i) {
 		mSolidMeshes.emplace_back(
 			mTotalVertexCount,
-			static_cast<uint32_t>(meshesData[i].first.size()),
+			static_cast<uint32_t>(meshesData[i].vertices.size()),
 			mTotalIndexCount,
-			static_cast<uint32_t>(meshesData[i].second.size())
+			static_cast<uint32_t>(meshesData[i].indices.size())
 		);
 
-		mTotalVertexCount += static_cast<uint32_t>(meshesData[i].first.size());
-		mTotalIndexCount += static_cast<uint32_t>(meshesData[i].second.size());
+		mTotalVertexCount += static_cast<uint32_t>(meshesData[i].vertices.size());
+		mTotalIndexCount += static_cast<uint32_t>(meshesData[i].indices.size());
 	}
 
 	if (mTotalVertexCount == 0 || mTotalIndexCount == 0) {
@@ -129,8 +129,8 @@ void Renderer::UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, st
 	{
 		char* data = reinterpret_cast<char*>(vertStagingMemory.mapMemory(0, vertBufSize));
 		for (size_t i = 0; i < meshesData.size(); ++i) {
-			size_t size = meshesData[i].first.size() * vertexSize;
-			memcpy(data, meshesData[i].first.data(), size);
+			size_t size = meshesData[i].vertices.size() * vertexSize;
+			memcpy(data, meshesData[i].vertices.data(), size);
 			data = data + size;
 		}
 		vertStagingMemory.unmapMemory();
@@ -153,8 +153,8 @@ void Renderer::UpdateSolidMeshes(std::vector< std::pair< std::vector<vertex>, st
 	{
 		char* data = reinterpret_cast<char*>(indStagingMemory.mapMemory(0, indexBufSize));
 		for (size_t i = 0; i < meshesData.size(); ++i) {
-			size_t size = meshesData[i].second.size() * indexSize;
-			memcpy(data, meshesData[i].second.data(), size);
+			size_t size = meshesData[i].indices.size() * indexSize;
+			memcpy(data, meshesData[i].indices.data(), size);
 			data = data + size;
 		}
 		indStagingMemory.unmapMemory();
@@ -427,9 +427,7 @@ void Renderer::CreateCommandPool() {
 }
 
 void Renderer::LoadRenderData() {
-	std::vector<vertex> vertices{ {} };
-	std::vector<uint16_t> indices{ 0 };
-	std::vector< std::pair< std::vector<vertex>, std::vector<uint16_t> > > data{
+	std::vector<assets::SolidMeshData> data{
 		{ { {} }, {0} }
 	};
 	UpdateSolidMeshes(data);

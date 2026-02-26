@@ -222,7 +222,7 @@ void Pipeline::ApplyBasePass(vk::raii::CommandBuffer& commandBuffer, vk::raii::I
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), { .width = static_cast<uint32_t>(viewWidth), .height = static_cast<uint32_t>(viewHeight) }));
 
 	commandBuffer.bindVertexBuffers(0, *vertexBuffer, { 0 });
-	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint16);
+	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint32);
 
 	uint32_t uniformOffset = 0;
 

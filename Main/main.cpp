@@ -10,7 +10,7 @@ int main() {
 	{
 		assets::SceneData scene = assets::loadSceneFromFile("assets/First.scene");
 
-		rend->UpdateSolidMeshes(scene.vertexData);
+		rend->UpdateSolidMeshes(scene.solidMeshes);
 
 		auto mesh1 = rend->GetSolidMesh(0);
 		mesh1->position.x = 1.5f;

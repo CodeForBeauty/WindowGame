@@ -208,6 +208,31 @@ matrix4x4<T> identity4x4() {
 		{ static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0) },
 	};
 }
+// Transpose
+template<typename T>
+matrix2x2<T> transpose(matrix2x2<T> mat) {
+	return {
+		{ static_cast<T>(mat.x.x), static_cast<T>(mat.y.x) },
+		{ static_cast<T>(mat.x.y), static_cast<T>(mat.y.y) },
+	};
+}
+template<typename T>
+matrix3x3<T> transpose(matrix3x3<T> mat) {
+	return {
+		{ static_cast<T>(mat.x.x), static_cast<T>(mat.y.x), static_cast<T>(mat.z.x) },
+		{ static_cast<T>(mat.x.y), static_cast<T>(mat.y.y), static_cast<T>(mat.z.y) },
+		{ static_cast<T>(mat.x.z), static_cast<T>(mat.y.z), static_cast<T>(mat.z.z) },
+	};
+}
+template<typename T>
+matrix4x4<T> transpose(matrix4x4<T> mat) {
+	return {
+		{ static_cast<T>(mat.x.x), static_cast<T>(mat.y.x), static_cast<T>(mat.z.x), static_cast<T>(mat.w.x) },
+		{ static_cast<T>(mat.x.y), static_cast<T>(mat.y.y), static_cast<T>(mat.z.y), static_cast<T>(mat.w.y) },
+		{ static_cast<T>(mat.x.z), static_cast<T>(mat.y.z), static_cast<T>(mat.z.z), static_cast<T>(mat.w.z) },
+		{ static_cast<T>(mat.x.w), static_cast<T>(mat.y.w), static_cast<T>(mat.z.w), static_cast<T>(mat.w.w) },
+	};
+}
 // Position Matrices
 template<typename T>
 matrix3x3<T> position2D(vector2D<T> pos) {

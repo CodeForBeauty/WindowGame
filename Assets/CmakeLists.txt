@@ -10,7 +10,7 @@ target_include_directories (assetLib BEFORE PUBLIC
 set_target_properties (assetLib PROPERTIES LINKER_LANGUAGE CXX)
 
 
-add_executable (assetConverter "${CMAKE_CURRENT_SOURCE_DIR}/AssetConverter/main.cpp")
+add_executable (assetConverter "AssetConverter/AssetConverter.cpp")
 
 target_include_directories (assetConverter BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/dep/headers" ${COMMON_INCLUDE_DIR})
 

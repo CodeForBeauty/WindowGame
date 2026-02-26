@@ -8,7 +8,7 @@
 #include <sstream>
 
 
-bool assets::loadObjModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<uint16_t>& indices) {
+bool assets::loadObjModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<uint32_t>& indices) {
 	std::ifstream file{ filepath };
 
 	std::string line;
@@ -105,20 +105,54 @@ bool assets::loadObjModel(const char* filepath, std::vector<renderer::vertex>& v
 	return true;
 }
 
-void assets::readModelFromMemory(std::vector<renderer::vertex>& vertices, std::vector<uint16_t>& indices, std::istream& stream) {
+void assets::readSolidMeshFromMemory(SolidMeshData& data, std::istream& stream) {
 	size_t verticesSize;
 	stream >> verticesSize;
 	stream.ignore(1);
 
-	vertices.resize(verticesSize / sizeof(renderer::vertex));
+	data.vertices.resize(verticesSize / sizeof(renderer::vertex));
 
-	stream.read(reinterpret_cast<char*>(vertices.data()), verticesSize);
+	stream.read(reinterpret_cast<char*>(data.vertices.data()), verticesSize);
 
 	size_t indicesSize;
 	stream >> indicesSize;
 	stream.ignore(1);
 
-	indices.resize(indicesSize / sizeof(uint16_t));
+	data.indices.resize(indicesSize / sizeof(uint32_t));
 
-	stream.read(reinterpret_cast<char*>(indices.data()), indicesSize);
+	stream.read(reinterpret_cast<char*>(data.indices.data()), indicesSize);
+}
+
+void assets::readSkinnedMeshFromMemory(SkinnedMeshData& data, std::istream& stream) {
+	size_t verticesSize;
+	stream >> verticesSize;
+	stream.ignore(1);
+
+	data.vertices.resize(verticesSize / sizeof(renderer::vertex));
+
+	stream.read(reinterpret_cast<char*>(data.vertices.data()), verticesSize);
+
+	size_t indicesSize;
+	stream >> indicesSize;
+	stream.ignore(1);
+
+	data.indices.resize(indicesSize / sizeof(uint32_t));
+
+	stream.read(reinterpret_cast<char*>(data.indices.data()), indicesSize);
+
+	size_t jointsSize;
+	stream >> jointsSize;
+	stream.ignore(1);
+
+	data.boneIndices.resize(jointsSize / sizeof(uint16_t));
+
+	stream.read(reinterpret_cast<char*>(data.boneIndices.data()), jointsSize);
+
+	size_t weightsSize;
+	stream >> weightsSize;
+	stream.ignore(1);
+
+	data.boneWeights.resize(weightsSize / sizeof(lm2::vec4));
+
+	stream.read(reinterpret_cast<char*>(data.boneWeights.data()), jointsSize);
 }

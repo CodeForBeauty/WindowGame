@@ -15,12 +15,12 @@ assets::SceneData::~SceneData() {
 }
 
 assets::SceneData::SceneData(SceneData&& rhs) noexcept {
-	std::swap(vertexData, rhs.vertexData);
+	std::swap(solidMeshes, rhs.solidMeshes);
 	std::swap(texData, rhs.texData);
 }
 
 SceneData& assets::SceneData::operator=(SceneData&& rhs) noexcept {
-	std::swap(vertexData, rhs.vertexData);
+	std::swap(solidMeshes, rhs.solidMeshes);
 	std::swap(texData, rhs.texData);
 	return *this;
 }
@@ -46,9 +46,15 @@ SceneData assets::loadSceneFromFile(std::string_view filepath) {
 			TextureInfo& tex = scene.texData.emplace_back();
 			tex.pixels = readTexture(&tex.width, &tex.height, &tex.channels, file);
 		}
-		else if (word == "model") {
-			auto& vert = scene.vertexData.emplace_back();
-			readModelFromMemory(vert.first, vert.second, file);
+		else if (word == "textures") {
+			std::string num;
+			while (num != "end") {
+				file >> num;
+			}
+		}
+		else if (word == "solid") {
+			auto& mesh = scene.solidMeshes.emplace_back();
+			readSolidMeshFromMemory(mesh, file);
 		}
 	}
 
