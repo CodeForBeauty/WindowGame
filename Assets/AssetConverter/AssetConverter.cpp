@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+#include <queue>
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -262,18 +263,19 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 
 			assert(weightAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
-			stream << sizeof(uint16_t) * 4 * jointVertexCount << "\n";
+			lm2::vector4D<uint16_t> tmp{};
+			stream << (sizeof(tmp) * jointVertexCount) << "\n";
 
 			switch (jointAccessor.componentType) {
 			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
 			{
 				const uint8_t* buf = reinterpret_cast<const uint8_t*>(jointDataTmp);
-				for (size_t i = 0; i < accessorIdx.count; ++i) {
-					lm2::vector4D<uint16_t> tmp{
-						buf[i * 4 + 0],
-						buf[i * 4 + 1],
-						buf[i * 4 + 2],
-						buf[i * 4 + 3],
+				for (size_t i = 0; i < jointVertexCount; ++i) {
+					tmp = {
+						static_cast<uint16_t>(buf[i * 4 + 0]),
+						static_cast<uint16_t>(buf[i * 4 + 1]),
+						static_cast<uint16_t>(buf[i * 4 + 2]),
+						static_cast<uint16_t>(buf[i * 4 + 3]),
 					};
 					stream.write(reinterpret_cast<const char*>(&tmp), sizeof(tmp));
 				}
@@ -282,12 +284,12 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
 			{
 				const uint16_t* buf = reinterpret_cast<const uint16_t*>(jointDataTmp);
-				for (size_t i = 0; i < accessorIdx.count; ++i) {
-					lm2::vector4D<uint16_t> tmp{
-						buf[i * 4 + 0],
-						buf[i * 4 + 1],
-						buf[i * 4 + 2],
-						buf[i * 4 + 3],
+				for (size_t i = 0; i < jointVertexCount; ++i) {
+					tmp = {
+						static_cast<uint16_t>(buf[i * 4 + 0]),
+						static_cast<uint16_t>(buf[i * 4 + 1]),
+						static_cast<uint16_t>(buf[i * 4 + 2]),
+						static_cast<uint16_t>(buf[i * 4 + 3]),
 					};
 					stream.write(reinterpret_cast<const char*>(&tmp), sizeof(tmp));
 				}
@@ -296,12 +298,12 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
 			{
 				const uint32_t* buf = reinterpret_cast<const uint32_t*>(jointDataTmp);
-				for (size_t i = 0; i < accessorIdx.count; ++i) {
-					lm2::vector4D<uint16_t> tmp{
-						buf[i * 4 + 0],
-						buf[i * 4 + 1],
-						buf[i * 4 + 2],
-						buf[i * 4 + 3],
+				for (size_t i = 0; i < jointVertexCount; ++i) {
+					tmp = {
+						static_cast<uint16_t>(buf[i * 4 + 0]),
+						static_cast<uint16_t>(buf[i * 4 + 1]),
+						static_cast<uint16_t>(buf[i * 4 + 2]),
+						static_cast<uint16_t>(buf[i * 4 + 3]),
 					};
 					stream.write(reinterpret_cast<const char*>(&tmp), sizeof(tmp));
 				}
@@ -354,6 +356,73 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 				stream.write(reinterpret_cast<char*>(&invMatTmp), sizeof(invMatTmp));
 			}
 			
+			stream << "\n";
+
+			// Bind pose
+			std::vector<lm2::mat4> poseMatrices;
+
+			poseMatrices.reserve(skin.joints.size());
+
+			std::queue<std::pair<int, int>> toProcess;
+
+			std::unordered_map<int, int> childCount;
+
+			for (size_t i = 0; i < skin.joints.size(); ++i) {
+				if (!childCount.contains(skin.joints[i])) {
+					childCount[skin.joints[i]] = 0;
+				}
+				for (int child : model.nodes[skin.joints[i]].children) {
+					childCount[child]++;
+				}
+			}
+
+			for (auto& count : childCount) {
+				if (count.second == 0) {
+					toProcess.push({ count.first, -1 });
+				}
+			}
+
+			lm2::mat4 tmpMat{};
+
+			while (toProcess.size() > 0) {
+				std::pair<int, int> current = toProcess.back();
+				toProcess.pop();
+
+				const tinygltf::Node& boneNode = model.nodes[current.first];
+				for (int child : boneNode.children) {
+					toProcess.push({child, current.first});
+				}
+
+				poseMatrices.push_back(tmpMat);
+
+				lm2::vec3 pos{};
+				if (boneNode.translation.size() > 0) {
+					pos.x = static_cast<float>(boneNode.translation[0]);
+					pos.y = static_cast<float>(boneNode.translation[1]);
+					pos.z = static_cast<float>(boneNode.translation[2]);
+				}
+
+				lm2::quaternion rot{};
+				if (boneNode.rotation.size() > 0) {
+					rot.x = static_cast<float>(boneNode.rotation[0]);
+					rot.y = static_cast<float>(boneNode.rotation[1]);
+					rot.z = static_cast<float>(boneNode.rotation[2]);
+					rot.w = static_cast<float>(boneNode.rotation[3]);
+				}
+
+				lm2::vec3 scale{};
+				if (boneNode.scale.size() > 0) {
+					scale.x = static_cast<float>(boneNode.scale[0]);
+					scale.y = static_cast<float>(boneNode.scale[1]);
+					scale.z = static_cast<float>(boneNode.scale[2]);
+				}
+
+				tmpMat = lm2::position3D(pos);
+			};
+
+			size_t poseMatSize = sizeof(lm2::mat4) * poseMatrices.size();
+			stream << poseMatSize << "\n";
+			stream.write(reinterpret_cast<char*>(poseMatrices.data()), poseMatSize);
 			stream << "\n";
 		}
 	}

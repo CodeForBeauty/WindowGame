@@ -11,7 +11,6 @@ add_custom_target(
 	ConvertAssets ALL
 	BYPRODUCTS ${CONVERTED_ASSETS}
 	COMMAND assetConverter "${CMAKE_CURRENT_SOURCE_DIR}/assets" "${MAIN_BINARY_DIR}/assets"
-	DEPENDS ${SOURCE_ASSETS}
 	COMMENT "Converting assets"
 	VERBATIM
 )

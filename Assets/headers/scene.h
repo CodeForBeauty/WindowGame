@@ -15,6 +15,7 @@ namespace assets {
 
 struct SceneData {
 	std::vector<SolidMeshData> solidMeshes;
+	std::vector<SkinnedMeshData> skinnedMeshes;
 	std::vector<TextureInfo> texData;
 
 	SceneData() {};

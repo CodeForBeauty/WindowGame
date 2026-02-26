@@ -56,6 +56,10 @@ SceneData assets::loadSceneFromFile(std::string_view filepath) {
 			auto& mesh = scene.solidMeshes.emplace_back();
 			readSolidMeshFromMemory(mesh, file);
 		}
+		else if (word == "skinned") {
+			auto& mesh = scene.skinnedMeshes.emplace_back();
+			readSkinnedMeshFromMemory(mesh, file);
+		}
 	}
 
 	file.close();

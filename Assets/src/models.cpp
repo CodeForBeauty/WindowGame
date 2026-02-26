@@ -144,7 +144,7 @@ void assets::readSkinnedMeshFromMemory(SkinnedMeshData& data, std::istream& stre
 	stream >> jointsSize;
 	stream.ignore(1);
 
-	data.boneIndices.resize(jointsSize / sizeof(uint16_t));
+	data.boneIndices.resize(jointsSize / (sizeof(lm2::vector4D<uint16_t>)));
 
 	stream.read(reinterpret_cast<char*>(data.boneIndices.data()), jointsSize);
 
@@ -154,5 +154,21 @@ void assets::readSkinnedMeshFromMemory(SkinnedMeshData& data, std::istream& stre
 
 	data.boneWeights.resize(weightsSize / sizeof(lm2::vec4));
 
-	stream.read(reinterpret_cast<char*>(data.boneWeights.data()), jointsSize);
+	stream.read(reinterpret_cast<char*>(data.boneWeights.data()), weightsSize);
+
+	size_t invSize;
+	stream >> invSize;
+	stream.ignore(1);
+
+	data.invBindPose.resize(invSize / sizeof(lm2::mat4));
+
+	stream.read(reinterpret_cast<char*>(data.invBindPose.data()), invSize);
+
+	size_t bindSize;
+	stream >> bindSize;
+	stream.ignore(1);
+
+	data.bindPose.resize(bindSize / sizeof(lm2::mat4));
+
+	stream.read(reinterpret_cast<char*>(data.bindPose.data()), bindSize);
 }
