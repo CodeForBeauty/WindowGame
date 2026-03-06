@@ -24,7 +24,7 @@ struct SolidMeshData {
 struct SkinnedMeshData : SolidMeshData {
 	std::vector<renderer::vertexSkinning> skinning;
 	std::vector<lm2::mat4> invBindPose;
-	std::vector<lm2::mat4> bindPose;
+	std::vector<renderer::BoneData> bindPose;
 };
 
 bool loadObjModel(const char* filepath, std::vector<renderer::vertex>& vertices, std::vector<uint32_t>& indices);

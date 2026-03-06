@@ -31,10 +31,13 @@ public:
 
 	void DrawSkinnedMeshes(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
 		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, vk::raii::Buffer& skinningBuffer,
-		const std::vector<SkinnedMesh>& skinnedMeshes);
+		const std::vector<SkinnedMesh>& skinnedMeshes, vk::DeviceSize firstVertex);
 
 	void UpdateTextures(const vk::raii::Device& device, const std::vector<TextureData>& textures);
 	void UpdateSingleTexture(const vk::raii::Device& device, const TextureData& texture);
+
+	void UpdatePoseBuffer(const vk::raii::Device& device, const vk::Buffer& poseBuffer, vk::DeviceSize bufferSize);
+	void UpdateInverseBuffer(const vk::raii::Device& device, const vk::Buffer& inverseBuffer, vk::DeviceSize bufferSize);
 
 private:
 #ifndef NDEBUG
@@ -49,10 +52,13 @@ private:
 	vk::raii::DeviceMemory        mVkStaticDrawDataBufferMemory    = nullptr;
 	void*                         mVkStaticDrawDataBufferMapped    = nullptr;
 
-	vk::raii::DescriptorPool      mVkDescriptorPool                = nullptr;
+	vk::raii::DescriptorSetLayout mVkMainDescriptorSetLayout       = nullptr;
+	vk::raii::DescriptorPool      mVkMainDescriptorPool            = nullptr;
 	vk::raii::DescriptorSet       mVkMainDescriptorSet             = nullptr;
 
-	vk::raii::DescriptorSetLayout mVkDescriptorSetLayout           = nullptr;
+	vk::raii::DescriptorSetLayout mVkBoneDescriptorSetLayout       = nullptr;
+	vk::raii::DescriptorPool      mVkBoneDescriptorPool            = nullptr;
+	vk::raii::DescriptorSet       mVkBoneDescriptorSet             = nullptr;
 
 	vk::raii::PipelineLayout      mVkSolidPipelineLayout           = nullptr;
 	vk::raii::Pipeline            mVkSolidPipeline                 = nullptr;
@@ -66,7 +72,7 @@ private:
 		std::vector<std::pair<const char*, vk::ShaderStageFlagBits>> shaderStagesFuncs,
 		std::vector<vk::VertexInputBindingDescription> bindingDesc, std::vector<vk::VertexInputAttributeDescription> attribDescs,
 		vk::PushConstantRange pushConstantRange, vk::Format outputFormat, vk::Format depthFormat,
-		vk::raii::DescriptorSetLayout& descriptorSet, vk::raii::PipelineLayout& outPipelineLayout, vk::raii::Pipeline& outPipeline);
+		std::vector<vk::DescriptorSetLayout> descriptorSet, vk::raii::PipelineLayout& outPipelineLayout, vk::raii::Pipeline& outPipeline);
 };
 
 struct StaticDrawDataUB {

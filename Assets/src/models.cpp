@@ -160,7 +160,7 @@ void assets::readSkinnedMeshFromMemory(SkinnedMeshData& data, std::istream& stre
 	stream >> bindSize;
 	stream.ignore(1);
 
-	data.bindPose.resize(bindSize / sizeof(lm2::mat4));
+	data.bindPose.resize(bindSize / sizeof(renderer::BoneData));
 
 	stream.read(reinterpret_cast<char*>(data.bindPose.data()), bindSize);
 }

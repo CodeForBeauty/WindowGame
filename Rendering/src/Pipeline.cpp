@@ -90,7 +90,7 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 	};
 
 	NewVkPipeline(device, mainSolidShader, shaderStageFuncs, bindingDescriptions, attributeDescriptions, staticPushConstantRange,
-		outputFormat, depthFormat, mVkDescriptorSetLayout, mVkSolidPipelineLayout, mVkSolidPipeline);
+		outputFormat, depthFormat, { mVkMainDescriptorSetLayout }, mVkSolidPipelineLayout, mVkSolidPipeline);
 
 	// Skinned meshes pipeline
 	bindingDescriptions.push_back(
@@ -105,21 +105,21 @@ void Pipeline::CreatePipeline(vk::raii::Device& device, vk::raii::PhysicalDevice
 		vk::VertexInputAttributeDescription{
 			.location = 3,
 			.binding = 1,
-			.format = vk::Format::eR32G32B32A32Sint,
-			.offset = offsetof(vertexSkinning, indices)
+			.format = vk::Format::eR32G32B32A32Sfloat,
+			.offset = offsetof(vertexSkinning, weights)
 		}
 	);
 	attributeDescriptions.push_back(
 		vk::VertexInputAttributeDescription{
 			.location = 4,
 			.binding = 1,
-			.format = vk::Format::eR32G32B32A32Sfloat,
-			.offset = offsetof(vertexSkinning, weights)
+			.format = vk::Format::eR32G32B32A32Uint,
+			.offset = offsetof(vertexSkinning, indices)
 		}
 	);
 
 	NewVkPipeline(device, mainSkinnedShader, shaderStageFuncs, bindingDescriptions, attributeDescriptions, staticPushConstantRange,
-		outputFormat, depthFormat, mVkDescriptorSetLayout, mVkSkinnedPipelineLayout, mVkSkinnedPipeline);
+		outputFormat, depthFormat, { mVkMainDescriptorSetLayout, mVkBoneDescriptorSetLayout }, mVkSkinnedPipelineLayout, mVkSkinnedPipeline);
 
 #ifndef NDEBUG
 	mPipelineCreated = true;
@@ -194,7 +194,7 @@ void Pipeline::DrawSolidMeshes(vk::raii::CommandBuffer& commandBuffer, vk::raii:
 
 void Pipeline::DrawSkinnedMeshes(vk::raii::CommandBuffer& commandBuffer, vk::raii::ImageView& swapImageView, vk::raii::ImageView& depthImageView,
 		int viewWidth, int viewHeight, vk::raii::Buffer& vertexBuffer, vk::raii::Buffer& indexBuffer, vk::raii::Buffer& skinningBuffer,
-		const std::vector<SkinnedMesh>& skinnedMeshes) {
+		const std::vector<SkinnedMesh>& skinnedMeshes, vk::DeviceSize firstVertex) {
 	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
 	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
 
@@ -232,28 +232,27 @@ void Pipeline::DrawSkinnedMeshes(vk::raii::CommandBuffer& commandBuffer, vk::rai
 
 	commandBuffer.beginRendering(renderingInfo);
 
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mVkSolidPipeline);
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mVkSkinnedPipeline);
 
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(viewWidth),
 		static_cast<float>(viewHeight), 0.0f, 1.0f));
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), { .width = static_cast<uint32_t>(viewWidth), .height = static_cast<uint32_t>(viewHeight) }));
 
-	commandBuffer.bindVertexBuffers(0, *vertexBuffer, { 0 });
-	commandBuffer.bindVertexBuffers(1, *skinningBuffer, { 0 });
+	commandBuffer.bindVertexBuffers(0, { *vertexBuffer, *skinningBuffer }, { firstVertex * sizeof(vertex), 0});
+	//commandBuffer.bindVertexBuffers(0, { *vertexBuffer, *vertexBuffer }, { firstVertex, 0 });
 	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint32);
 
-	uint32_t uniformOffset = 0;
-
 	PerObjectData pod{};
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkSolidPipelineLayout, 0, *mVkMainDescriptorSet, nullptr);
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkSkinnedPipelineLayout, 0, *mVkMainDescriptorSet, nullptr);
 
 	for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mVkSkinnedPipelineLayout, 1, *mVkBoneDescriptorSet,
+			{ skinnedMeshes[i].boneIndexOffset, skinnedMeshes[i].boneIndexOffset});
+
 		pod.model = lm2::position3D(skinnedMeshes[i].data.position) * lm2::mat4(lm2::rotation3D(skinnedMeshes[i].data.rotation));
-		commandBuffer.pushConstants<PerObjectData>(mVkSolidPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, pod);
+		commandBuffer.pushConstants<PerObjectData>(mVkSkinnedPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, pod);
 
-		uniformOffset++;
-
-		commandBuffer.drawIndexed(skinnedMeshes[i].indexCount, 1, skinnedMeshes[i].indexOffset, skinnedMeshes[i].vertexOffset, 0);
+		commandBuffer.drawIndexed(skinnedMeshes[i].indexCount, 1, skinnedMeshes[i].indexOffset, skinnedMeshes[i].vertexOffset - firstVertex, 0);
 	}
 
 	commandBuffer.endRendering();
@@ -296,23 +295,64 @@ void Pipeline::UpdateSingleTexture(const vk::raii::Device& device, const Texture
 	device.updateDescriptorSets(descriptorWrite, {});
 }
 
+void renderer::Pipeline::UpdateInverseBuffer(const vk::raii::Device& device, const vk::Buffer& inverseBuffer, vk::DeviceSize bufferSize) {
+	vk::DescriptorBufferInfo invBufferInfo{
+		.buffer = inverseBuffer,
+		.offset = 0,
+		.range = bufferSize
+	};
+	vk::WriteDescriptorSet descriptorWrites{
+		.dstSet = mVkBoneDescriptorSet,
+		.dstBinding = 0,
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = vk::DescriptorType::eStorageBufferDynamic,
+		.pBufferInfo = &invBufferInfo
+	};
+	device.updateDescriptorSets(descriptorWrites, {});
+}
+
+void renderer::Pipeline::UpdatePoseBuffer(const vk::raii::Device& device, const vk::Buffer& poseBuffer, vk::DeviceSize bufferSize) {
+	vk::DescriptorBufferInfo poseBufferInfo{
+		.buffer = poseBuffer,
+		.offset = 0,
+		.range = bufferSize
+	};
+	vk::WriteDescriptorSet descriptorWrites{
+		.dstSet = mVkBoneDescriptorSet,
+		.dstBinding = 1,
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = vk::DescriptorType::eStorageBufferDynamic,
+		.pBufferInfo = &poseBufferInfo
+	};
+	device.updateDescriptorSets(descriptorWrites, {});
+}
+
 void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::PhysicalDevice& physicalDevice, unsigned int maxTextures) {
-	/*auto properties = physicalDevice.getProperties();
-	uint32_t minUboAlignment = static_cast<uint32_t>(properties.limits.minUniformBufferOffsetAlignment);
-	if (minUboAlignment > 0) {
-		mStaticDrawDataSize = (mStaticDrawDataSize + minUboAlignment - 1) & ~(minUboAlignment - 1);
-	}*/
 	mStaticDrawDataSize = sizeof(StaticDrawDataUB);
 
-	std::array uboLayoutBindings{
+	std::vector uboLayoutBindings{
 		vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr },
 		vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, maxTextures, vk::ShaderStageFlagBits::eFragment, nullptr },
 	};
-	vk::DescriptorSetLayoutCreateInfo layoutInfo{
-		.bindingCount = static_cast<uint32_t>(uboLayoutBindings.size()),
-		.pBindings = uboLayoutBindings.data()
+	std::vector poolSizes{
+		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
+		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, maxTextures),
 	};
-	mVkDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+	createDescriptorSet(device, uboLayoutBindings, poolSizes, mVkMainDescriptorSetLayout, mVkMainDescriptorPool, mVkMainDescriptorSet);
+
+	// Inverse bind matrix and pose matrix
+	std::vector boneLayoutBindings{
+		vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eStorageBufferDynamic, 1, vk::ShaderStageFlagBits::eVertex, nullptr },
+		vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eStorageBufferDynamic, 1, vk::ShaderStageFlagBits::eVertex, nullptr },
+	};
+	std::vector bonePoolSizes{
+		vk::DescriptorPoolSize(vk::DescriptorType::eStorageBufferDynamic, 1),
+		vk::DescriptorPoolSize(vk::DescriptorType::eStorageBufferDynamic, 1),
+	};
+	createDescriptorSet(device, boneLayoutBindings, bonePoolSizes, mVkBoneDescriptorSetLayout, mVkBoneDescriptorPool, mVkBoneDescriptorSet);
+
 
 	vk::DeviceSize bufferSize = mStaticDrawDataSize;
 
@@ -322,42 +362,18 @@ void Pipeline::CreateUniformBuffers(vk::raii::Device& device, vk::raii::Physical
 	mVkStaticDrawDataBufferMapped = mVkStaticDrawDataBufferMemory.mapMemory(0, bufferSize);
 
 
-	std::array poolSizes{
-		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
-		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, maxTextures),
-	};
-	vk::DescriptorPoolCreateInfo poolInfo{
-		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-		.maxSets = 1,
-		.poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
-		.pPoolSizes = poolSizes.data()
-	};
-
-	mVkDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
-
-	vk::DescriptorSetLayout layouts{ *mVkDescriptorSetLayout };
-	vk::DescriptorSetAllocateInfo allocInfo{
-		.descriptorPool = mVkDescriptorPool,
-		.descriptorSetCount = 1,
-		.pSetLayouts = &layouts
-	};
-	auto descriptorSets = device.allocateDescriptorSets(allocInfo);
-	mVkMainDescriptorSet = std::move(descriptorSets[0]);
-
 	vk::DescriptorBufferInfo bufferInfo{
 		.buffer = mVkStaticDrawDataBuffer,
 		.offset = 0,
 		.range = mStaticDrawDataSize
 	};
-	std::vector<vk::WriteDescriptorSet> descriptorWrites{
-		vk::WriteDescriptorSet{
-			.dstSet = mVkMainDescriptorSet,
-			.dstBinding = 0,
-			.dstArrayElement = 0,
-			.descriptorCount = 1,
-			.descriptorType = vk::DescriptorType::eUniformBuffer,
-			.pBufferInfo = &bufferInfo
-		}
+	vk::WriteDescriptorSet descriptorWrites{
+		.dstSet = mVkMainDescriptorSet,
+		.dstBinding = 0,
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = vk::DescriptorType::eUniformBuffer,
+		.pBufferInfo = &bufferInfo
 	};
 	device.updateDescriptorSets(descriptorWrites, {});
 }
@@ -382,7 +398,7 @@ void Pipeline::NewVkPipeline(const vk::raii::Device& device, const char* shaderF
 		std::vector<std::pair<const char*, vk::ShaderStageFlagBits>> shaderStagesFuncs,
 		std::vector<vk::VertexInputBindingDescription> bindingDescs, std::vector<vk::VertexInputAttributeDescription> attribDescs,
 		vk::PushConstantRange pushConstantRange, vk::Format outputFormat, vk::Format depthFormat,
-		vk::raii::DescriptorSetLayout& descriptorSet, vk::raii::PipelineLayout& outPipelineLayout, vk::raii::Pipeline& outPipeline) {
+		std::vector<vk::DescriptorSetLayout> descriptorSets, vk::raii::PipelineLayout& outPipelineLayout, vk::raii::Pipeline& outPipeline) {
 	std::vector<char> shaderCode = ReadFile(shaderFile);
 
 	vk::ShaderModuleCreateInfo shaderModuleCI{
@@ -463,8 +479,8 @@ void Pipeline::NewVkPipeline(const vk::raii::Device& device, const char* shaderF
 
 
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
-		.setLayoutCount = 1,
-		.pSetLayouts = &*descriptorSet,
+		.setLayoutCount = static_cast<uint32_t>(descriptorSets.size()),
+		.pSetLayouts = descriptorSets.data(),
 		.pushConstantRangeCount = 1,
 		.pPushConstantRanges = &pushConstantRange
 	};

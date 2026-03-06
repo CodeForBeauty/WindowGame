@@ -183,3 +183,31 @@ void renderer::endAndWaitSingleTimeCommands(vk::raii::CommandBuffer& buffer, con
 	queue.submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*buffer }, nullptr);
 	queue.waitIdle();
 }
+
+void renderer::createDescriptorSet(const vk::raii::Device& device, std::vector<vk::DescriptorSetLayoutBinding> layoutBindings,
+		std::vector<vk::DescriptorPoolSize> poolSizes, vk::raii::DescriptorSetLayout& outDescriptorSetLayout,
+		vk::raii::DescriptorPool& outDescriptorPool, vk::raii::DescriptorSet& outDescriptorSet) {
+	vk::DescriptorSetLayoutCreateInfo layoutInfo{
+		.bindingCount = static_cast<uint32_t>(layoutBindings.size()),
+		.pBindings = layoutBindings.data()
+	};
+	outDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+
+	vk::DescriptorPoolCreateInfo poolInfo{
+		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+		.maxSets = 1,
+		.poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+		.pPoolSizes = poolSizes.data()
+	};
+
+	outDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
+
+	vk::DescriptorSetLayout layouts{ *outDescriptorSetLayout };
+	vk::DescriptorSetAllocateInfo allocInfo{
+		.descriptorPool = outDescriptorPool,
+		.descriptorSetCount = 1,
+		.pSetLayouts = &layouts
+	};
+	auto descriptorSets = device.allocateDescriptorSets(allocInfo);
+	outDescriptorSet = std::move(descriptorSets[0]);
+}

@@ -12,8 +12,13 @@ namespace renderer {
 	};
 
 	struct vertexSkinning {
-		lm2::vector4D<uint16_t> indices;
 		lm2::vec4 weights;
+		lm2::vector4D<uint32_t> indices;
+	};
+
+	struct BoneData {
+		lm2::mat4 transform;
+		int parent;
 	};
 
 } // namespace renderer

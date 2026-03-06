@@ -35,4 +35,8 @@ namespace renderer {
 	vk::raii::CommandBuffer startSingleTimeCommands(const vk::raii::Device& device, const vk::CommandPool& cmdPool);
 	void endAndWaitSingleTimeCommands(vk::raii::CommandBuffer& buffer, const vk::raii::Queue queue);
 
+	void createDescriptorSet(const vk::raii::Device& device, std::vector<vk::DescriptorSetLayoutBinding> layoutBindings,
+		std::vector<vk::DescriptorPoolSize> poolSizes, vk::raii::DescriptorSetLayout& outDescriptorSetLayout,
+		vk::raii::DescriptorPool& outDescriptorPool, vk::raii::DescriptorSet& outDescriptorSet);
+
 } // namespace renderer

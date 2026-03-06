@@ -75,8 +75,11 @@ void Renderer::Render(int width, int height) {
 
 	mVkCommandBuffer.begin({});
 
+	// TODO: Animation update
+	mPipeline.UpdatePoseBuffer(mVkDevice, mVkBonePoseDataBuffer, sizeof(lm2::mat4) * mTotalBoneCount);
+
 	mPipeline.DrawSkinnedMeshes(mVkCommandBuffer, mVkImageViews[mCurrentSwapImage], mVkDepthImageView, width, height,
-		mVkVertexBuffer, mVkIndexBuffer, mVkSkinningBuffer, mSkinnedMeshes);
+		mVkVertexBuffer, mVkIndexBuffer, mVkSkinningBuffer, mSkinnedMeshes, mFirstSkinOffset);
 
 	TransitionImageView(mVkCommandBuffer, mVkSwapImages[mCurrentSwapImage],
 		vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
@@ -125,6 +128,7 @@ void Renderer::UpdateMeshes(std::vector<assets::SolidMeshData>& solidMeshes, std
 	size_t vertexSize = sizeof(vertex);
 	size_t indexSize = sizeof(uint32_t);
 	size_t skinningSize = sizeof(vertexSkinning);
+	size_t boneSize = sizeof(lm2::mat4);
 
 	mSolidMeshes.clear();
 
@@ -140,6 +144,8 @@ void Renderer::UpdateMeshes(std::vector<assets::SolidMeshData>& solidMeshes, std
 		mTotalIndexCount += static_cast<uint32_t>(solidMeshes[i].indices.size());
 	}
 
+	mFirstSkinOffset = mTotalVertexCount;
+
 	for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
 		mSkinnedMeshes.emplace_back(
 			SkinnedMesh{
@@ -150,14 +156,15 @@ void Renderer::UpdateMeshes(std::vector<assets::SolidMeshData>& solidMeshes, std
 
 				MeshData{},
 
-				mTotalSkinningCount,
-				static_cast<uint32_t>(skinnedMeshes[i].skinning.size())
+				mTotalBoneCount,
+				static_cast<uint32_t>(skinnedMeshes[i].bindPose.size())
 			}
 		);
 
 		mTotalVertexCount += static_cast<uint32_t>(skinnedMeshes[i].vertices.size());
 		mTotalIndexCount += static_cast<uint32_t>(skinnedMeshes[i].indices.size());
 		mTotalSkinningCount += static_cast<uint32_t>(skinnedMeshes[i].skinning.size());
+		mTotalBoneCount += static_cast<uint32_t>(skinnedMeshes[i].bindPose.size());
 	}
 
 	if (mTotalVertexCount == 0 || mTotalIndexCount == 0) {
@@ -248,6 +255,53 @@ void Renderer::UpdateMeshes(std::vector<assets::SolidMeshData>& solidMeshes, std
 	}
 
 	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, skinStagingBuffer, mVkSkinningBuffer, skinBufSize);
+
+	// Bone buffers
+	if (mTotalBoneCount <= 0) {
+		return;
+	}
+
+	vk::DeviceSize boneBufSize = boneSize * mTotalBoneCount;
+
+	vk::raii::Buffer invPoseStagingBuffer = nullptr;
+	vk::raii::DeviceMemory invPoseStagingMemory = nullptr;
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, boneBufSize, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, invPoseStagingBuffer, invPoseStagingMemory);
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, boneBufSize, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, mVkBoneInvPoseBuffer, mVkBoneInvPoseBufferMemory);
+
+	{
+		char* data = reinterpret_cast<char*>(invPoseStagingMemory.mapMemory(0, boneBufSize));
+		for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+			size_t size = skinnedMeshes[i].invBindPose.size() * boneSize;
+			memcpy(data, skinnedMeshes[i].invBindPose.data(), size);
+			data = data + size;
+		}
+		invPoseStagingMemory.unmapMemory();
+	}
+
+	copyBuffer(mVkDevice, mVkCommandPool, mVkGraphicsQueue, invPoseStagingBuffer, mVkBoneInvPoseBuffer, boneBufSize);
+
+	mPipeline.UpdateInverseBuffer(mVkDevice, mVkBoneInvPoseBuffer, boneBufSize);
+
+
+	createBuffer(mVkDevice, mVkPhysicalDevice, boneBufSize, vk::BufferUsageFlagBits::eStorageBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, mVkBonePoseDataBuffer, mVkBonePoseDataBufferMemory);
+
+	mVkBonePoseDataBufferMapped = mVkBonePoseDataBufferMemory.mapMemory(0, boneBufSize);
+
+	{
+		char* data = reinterpret_cast<char*>(mVkBonePoseDataBufferMapped);
+		for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
+			mAllBones.insert(mAllBones.end(), skinnedMeshes[i].bindPose.begin(), skinnedMeshes[i].bindPose.end());
+			for (size_t j = 0; j < skinnedMeshes[i].bindPose.size(); ++j) {
+				memcpy(data, &(skinnedMeshes[i].bindPose[j]), boneSize);
+				data = data + boneSize;
+			}
+		}
+	}
 }
 
 void Renderer::Cleanup() {

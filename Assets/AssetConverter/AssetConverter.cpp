@@ -345,7 +345,7 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 			stream << "\n";
 
 			// Bind pose
-			std::vector<lm2::mat4> poseMatrices;
+			std::vector<renderer::BoneData> poseMatrices;
 
 			poseMatrices.reserve(skin.joints.size());
 
@@ -368,7 +368,7 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 				}
 			}
 
-			lm2::mat4 tmpMat{};
+			renderer::BoneData tmpMat{};
 
 			while (toProcess.size() > 0) {
 				std::pair<int, int> current = toProcess.back();
@@ -378,8 +378,6 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 				for (int child : boneNode.children) {
 					toProcess.push({child, current.first});
 				}
-
-				poseMatrices.push_back(tmpMat);
 
 				lm2::vec3 pos{};
 				if (boneNode.translation.size() > 0) {
@@ -403,10 +401,13 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 					scale.z = static_cast<float>(boneNode.scale[2]);
 				}
 
-				tmpMat = lm2::position3D(pos);
+				tmpMat.parent = current.second;
+				tmpMat.transform = lm2::position3D(pos);
+
+				poseMatrices.push_back(tmpMat);
 			};
 
-			size_t poseMatSize = sizeof(lm2::mat4) * poseMatrices.size();
+			size_t poseMatSize = sizeof(poseMatrices[0]) * poseMatrices.size();
 			stream << poseMatSize << "\n";
 			stream.write(reinterpret_cast<char*>(poseMatrices.data()), poseMatSize);
 			stream << "\n";

@@ -2,18 +2,25 @@ struct StaticDrawDataUB {
 	float4x4 view;
 	float4x4 proj;
 };
-uniform ConstantBuffer<StaticDrawDataUB> uboMain;
+[vk_binding(0, 0)] uniform ConstantBuffer<StaticDrawDataUB> uboMain;
 
 struct PerObjectData {
     float4x4 model;
 };
 [vk_push_constant] uniform PerObjectData pcObjData;
 
+[vk_binding(1, 0)] uniform Sampler2D allTextures[];
+
+[vk_binding(0, 1)] StructuredBuffer<float4x4> uInverseBind;
+[vk_binding(1, 1)] StructuredBuffer<float4x4> uPose;
 
 struct VSInput {
-    float3 inPosition;
-    float3 inNormal;
-    float2 inUV;
+    [vk_location(0)] float3 inPosition;
+    [vk_location(1)] float3 inNormal;
+    [vk_location(2)] float2 inUV;
+
+    [vk_location(3)] float4 inBoneWeights;
+    [vk_location(4)] uint4 inBoneIndices;
 };
 
 struct VertexOutput {
@@ -26,14 +33,31 @@ struct VertexOutput {
 [shader("vertex")]
 VertexOutput vertMain(VSInput input) {
     VertexOutput output;
-    output.sv_position = mul(uboMain.proj, mul(uboMain.view, mul(pcObjData.model, float4(input.inPosition, 1.0))));
+
+    float4 tmpPos = float4(0);
+
+    for (int i = 0; i < 4; i++) {
+        uint idx = input.inBoneIndices[i] - 1;
+        if (idx == -1) {
+            continue;
+        }
+        // tmpPos += mul(uPose[input.inBoneIndices[i]], mul(uInverseBind[input.inBoneIndices[i]], float4(input.inPosition, 1))) * input.inBoneWeights[i];
+        tmpPos += mul(uPose[idx], mul(uInverseBind[idx], float4(input.inPosition, 1))) * input.inBoneWeights[i];
+        //tmpPos += mul(uInverseBind[idx], float4(input.inPosition, 1)) * input.inBoneWeights[i];
+    }
+
+    //tmpPos = mul(uPose[input.inBoneIndices.x - 1], mul(uInverseBind[input.inBoneIndices.x - 1], float4(input.inPosition, 1)));
+
+    // tmpPos = float4(input.inPosition, 1);
+    //tmpPos.w = 1;
+
+    output.sv_position = mul(uboMain.proj, mul(uboMain.view, mul(pcObjData.model, tmpPos)));
+    //output.sv_position = mul(uboMain.proj, mul(uboMain.view, mul(pcObjData.model, float4(input.inPosition, 1))));
     output.uv = input.inUV;
     output.normal = mul(uboMain.view, mul(pcObjData.model, float4(input.inNormal, 0.0))).xyz;
-    output.viewPos = mul(uboMain.view, mul(pcObjData.model, float4(input.inPosition, 1.0))).xyz;
+    output.viewPos = mul(uboMain.view, mul(pcObjData.model, tmpPos)).xyz;
     return output;
 }
-
-uniform Sampler2D allTextures[];
 
 [shader("fragment")]
 float4 fragMain(VertexOutput inVert) : SV_Target {
