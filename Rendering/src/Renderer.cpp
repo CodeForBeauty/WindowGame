@@ -297,7 +297,7 @@ void Renderer::UpdateMeshes(std::vector<assets::SolidMeshData>& solidMeshes, std
 		for (size_t i = 0; i < skinnedMeshes.size(); ++i) {
 			mAllBones.insert(mAllBones.end(), skinnedMeshes[i].bindPose.begin(), skinnedMeshes[i].bindPose.end());
 			for (size_t j = 0; j < skinnedMeshes[i].bindPose.size(); ++j) {
-				memcpy(data, &(skinnedMeshes[i].bindPose[j]), boneSize);
+				memcpy(data, &(skinnedMeshes[i].bindPose[j].transform), boneSize);
 				data = data + boneSize;
 			}
 		}

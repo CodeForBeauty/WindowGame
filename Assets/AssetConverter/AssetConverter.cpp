@@ -338,6 +338,7 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 				memcpy(&invMatTmp, p, sizeof(invMatTmp));
 
 				invMatTmp = lm2::transpose(invMatTmp);
+				//invMatTmp = invMatTmp;
 
 				stream.write(reinterpret_cast<char*>(&invMatTmp), sizeof(invMatTmp));
 			}
@@ -351,33 +352,30 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 
 			std::queue<std::pair<int, int>> toProcess;
 
-			std::unordered_map<int, int> childCount;
+			std::unordered_map<int, int> parents;
 
 			for (size_t i = 0; i < skin.joints.size(); ++i) {
-				if (!childCount.contains(skin.joints[i])) {
-					childCount[skin.joints[i]] = 0;
+				if (parents.contains(skin.joints[i])) {
+					toProcess.push({ skin.joints[i], parents[skin.joints[i]] });
+				}
+				else {
+					toProcess.push({ skin.joints[i], -1 });
+
 				}
 				for (int child : model.nodes[skin.joints[i]].children) {
-					childCount[child]++;
-				}
-			}
-
-			for (auto& count : childCount) {
-				if (count.second == 0) {
-					toProcess.push({ count.first, -1 });
+					parents[child] = i;
 				}
 			}
 
 			renderer::BoneData tmpMat{};
 
 			while (toProcess.size() > 0) {
-				std::pair<int, int> current = toProcess.back();
+				std::pair<int, int> current = toProcess.front();
+				int index = current.first;
+				int parent = current.second;
 				toProcess.pop();
 
-				const tinygltf::Node& boneNode = model.nodes[current.first];
-				for (int child : boneNode.children) {
-					toProcess.push({child, current.first});
-				}
+				const tinygltf::Node& boneNode = model.nodes[index];
 
 				lm2::vec3 pos{};
 				if (boneNode.translation.size() > 0) {
@@ -386,7 +384,7 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 					pos.z = static_cast<float>(boneNode.translation[2]);
 				}
 
-				lm2::quaternion rot{};
+				lm2::quaternion rot{1, 0, 0, 0};
 				if (boneNode.rotation.size() > 0) {
 					rot.x = static_cast<float>(boneNode.rotation[0]);
 					rot.y = static_cast<float>(boneNode.rotation[1]);
@@ -394,15 +392,15 @@ static void ConvertModelFile(fs::path source, std::ostream& stream, const std::v
 					rot.w = static_cast<float>(boneNode.rotation[3]);
 				}
 
-				lm2::vec3 scale{};
+				lm2::vec3 scale{1, 1, 1};
 				if (boneNode.scale.size() > 0) {
 					scale.x = static_cast<float>(boneNode.scale[0]);
 					scale.y = static_cast<float>(boneNode.scale[1]);
 					scale.z = static_cast<float>(boneNode.scale[2]);
 				}
 
-				tmpMat.parent = current.second;
-				tmpMat.transform = lm2::position3D(pos);
+				tmpMat.parent = parent;
+				tmpMat.transform = lm2::position3D(pos) * lm2::mat4(lm2::toMatrix(rot)) * lm2::mat4(lm2::scale3D(scale));
 
 				poseMatrices.push_back(tmpMat);
 			};

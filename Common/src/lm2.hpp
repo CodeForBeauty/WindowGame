@@ -97,11 +97,11 @@ using mat4 = matrix4x4<float>;
 
 // Quaternion types
 template<typename T>
-struct quaternionT {
+struct quaternion_t {
 	T w, x, y, z;
 };
 
-using quaternion = quaternionT<float>;
+using quaternion = quaternion_t<float>;
 
 // Scalar functions
 template<typename T>
@@ -252,6 +252,23 @@ matrix4x4<T> position3D(vector3D<T> pos) {
 	};
 }
 
+template<typename T>
+matrix2x2<T> scale2D(vector2D<T> scale) {
+	return {
+		{ scale.x, 0 },
+		{ 0, scale.y },
+	};
+}
+
+template<typename T>
+matrix3x3<T> scale3D(vector3D<T> scale) {
+	return {
+		{ scale.x, 0, 0 },
+		{ 0, scale.y, 0 },
+		{ 0, 0, scale.z },
+	};
+}
+
 // Projection Matrices
 // ratio = height / width
 template<typename T>
@@ -329,6 +346,35 @@ matrix4x4<T> lookAt(vector3D<T> eye, vector3D<T> at, vector3D<T> up) {
 		{ 0,         0,         0,         1}
 	};
 }
+
+// Quaternions
+template<typename T>
+T magnitudeSquared(quaternion_t<T> quat) {
+	return (quat.x * quat.x + quat.y * quat.y + quat.z * quat.z + quat.w * quat.w);
+}
+template<typename T>
+T magnitude(quaternion_t<T> quat) {
+	return std::sqrt(magnitudeSquared(quat));
+}
+template<typename T>
+quaternion_t<T> normalize(quaternion_t<T> quat) {
+	return quat / magnitude(quat);
+}
+
+template<typename T>
+quaternion_t<T> inverse(quaternion_t<T> quat) {
+	return {quat.w, -quat.x, -quat.y, -quat.z};
+}
+
+template<typename T>
+matrix3x3<T> toMatrix(quaternion_t<T> quat) {
+	return {
+		{ 2 * (quat.w * quat.w + quat.x * quat.x) - 1, 2 * (quat.x * quat.y - quat.w * quat.z),     2 * (quat.x * quat.z + quat.w * quat.y) },
+		{ 2 * (quat.x * quat.y + quat.w * quat.z),     2 * (quat.w * quat.w + quat.y * quat.y) - 1, 2 * (quat.y * quat.z - quat.w * quat.x) },
+		{ 2 * (quat.x * quat.z - quat.w * quat.y),     2 * (quat.y * quat.z + quat.w * quat.x),     2 * (quat.w * quat.w + quat.z * quat.z) - 1 },
+	};
+}
+
 
 // Equal
 template<typename T>
@@ -768,6 +814,12 @@ matrix4x4<T> operator*(matrix4x4<T> a, matrix4x4<T> b) {
 		{ dot(a.z, { b.x.x, b.y.x, b.z.x, b.w.x }), dot(a.z, { b.x.y, b.y.y, b.z.y, b.w.y }), dot(a.z, { b.x.z, b.y.z, b.z.z, b.w.z }), dot(a.z, { b.x.w, b.y.w, b.z.w, b.w.w }) },
 		{ dot(a.w, { b.x.x, b.y.x, b.z.x, b.w.x }), dot(a.w, { b.x.y, b.y.y, b.z.y, b.w.y }), dot(a.w, { b.x.z, b.y.z, b.z.z, b.w.z }), dot(a.w, { b.x.w, b.y.w, b.z.w, b.w.w }) },
 	};
+}
+
+// Quaternions
+template<typename T>
+quaternion_t<T> operator-(quaternion_t<T> quat) {
+	return { -quat.w, -quat.x, -quat.y, -quat.z };
 }
 
 

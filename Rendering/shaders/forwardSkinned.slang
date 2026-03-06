@@ -11,8 +11,8 @@ struct PerObjectData {
 
 [vk_binding(1, 0)] uniform Sampler2D allTextures[];
 
-[vk_binding(0, 1)] StructuredBuffer<float4x4> uInverseBind;
-[vk_binding(1, 1)] StructuredBuffer<float4x4> uPose;
+[vk_binding(0, 1)] ConstantBuffer<float4x4[]> uInverseBind;
+[vk_binding(1, 1)] ConstantBuffer<float4x4[]> uPose;
 
 struct VSInput {
     [vk_location(0)] float3 inPosition;
@@ -35,27 +35,25 @@ VertexOutput vertMain(VSInput input) {
     VertexOutput output;
 
     float4 tmpPos = float4(0);
+    float3 tmpNormal = float3(0);
 
     for (int i = 0; i < 4; i++) {
-        uint idx = input.inBoneIndices[i] - 1;
-        if (idx == -1) {
-            continue;
-        }
-        // tmpPos += mul(uPose[input.inBoneIndices[i]], mul(uInverseBind[input.inBoneIndices[i]], float4(input.inPosition, 1))) * input.inBoneWeights[i];
-        tmpPos += mul(uPose[idx], mul(uInverseBind[idx], float4(input.inPosition, 1))) * input.inBoneWeights[i];
-        //tmpPos += mul(uInverseBind[idx], float4(input.inPosition, 1)) * input.inBoneWeights[i];
+        uint idx = input.inBoneIndices[i];
+
+        float4x4 finalBone = mul(uPose[idx], uInverseBind[idx]);
+        
+        tmpPos += mul(finalBone, float4(input.inPosition, 1)) * input.inBoneWeights[i];
+        tmpNormal += mul(float3x3(finalBone), input.inNormal) * input.inBoneWeights[i];
     }
 
-    //tmpPos = mul(uPose[input.inBoneIndices.x - 1], mul(uInverseBind[input.inBoneIndices.x - 1], float4(input.inPosition, 1)));
+    tmpNormal = normalize(tmpNormal);
 
-    // tmpPos = float4(input.inPosition, 1);
-    //tmpPos.w = 1;
+    float4x4 modelView = mul(uboMain.view, pcObjData.model);
 
-    output.sv_position = mul(uboMain.proj, mul(uboMain.view, mul(pcObjData.model, tmpPos)));
-    //output.sv_position = mul(uboMain.proj, mul(uboMain.view, mul(pcObjData.model, float4(input.inPosition, 1))));
+    output.sv_position = mul(uboMain.proj, mul(modelView, tmpPos));
     output.uv = input.inUV;
-    output.normal = mul(uboMain.view, mul(pcObjData.model, float4(input.inNormal, 0.0))).xyz;
-    output.viewPos = mul(uboMain.view, mul(pcObjData.model, tmpPos)).xyz;
+    output.normal = mul(float3x3(modelView), tmpNormal);
+    output.viewPos = mul(modelView, tmpPos).xyz;
     return output;
 }
 
